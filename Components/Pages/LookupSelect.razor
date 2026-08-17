@@ -1,0 +1,25 @@
+<div class="emp-field">
+    <label class="emp-label">@Label</label>
+    <div class="emp-select-wrap">
+        <select value="@Value" @onchange="Changed" class="emp-input emp-select">
+            @foreach (var option in Options)
+            {
+                <option value="@option.Id">@option.Name</option>
+            }
+        </select>
+        <span class="emp-select-arrow" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+        </span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public IEnumerable<LookupOption> Options { get; set; } = [];
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+
+    private Task Changed(ChangeEventArgs args) =>
+        ValueChanged.InvokeAsync(int.TryParse(args.Value?.ToString(), out var value) ? value : 0);
+}
+

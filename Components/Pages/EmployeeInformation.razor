@@ -1,0 +1,1570 @@
+@page "/EmployeeInformation"
+@inject EmployeeRepository EmployeeRepository
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JS
+@using EmployeeModel = TG.Payroll.Web.Models.EmployeeInformation
+
+<div class="emp-page-container">
+    <!-- Header Section -->
+    <header class="emp-page-header">
+        <div class="emp-header-info">
+            <div class="emp-badge-category">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+                <span>RECRUITMENT & WORKFORCE</span>
+            </div>
+            <h1 class="emp-page-title">Employee Information</h1>
+            <p class="emp-page-desc">Search, register, and maintain comprehensive employee records, departmental placements, and payroll settings.</p>
+        </div>
+        <div class="emp-header-status">
+            @if (isEdit)
+            {
+                <div class="emp-status-pill is-edit">
+                    <span class="emp-pill-dot"></span>
+                    <div class="emp-pill-text">
+                        <strong>@employee.EmployeeCode</strong>
+                        <small>System ID: #@employee.EmployeeId</small>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="emp-status-pill is-new">
+                    <span class="emp-pill-dot"></span>
+                    <div class="emp-pill-text">
+                        <strong>New Registration</strong>
+                        <small>Ready to save</small>
+                    </div>
+                </div>
+            }
+        </div>
+    </header>
+
+    <!-- Feedback Alerts -->
+    @if (saved)
+    {
+        <div class="emp-alert emp-alert-success animate-in">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+            <div class="emp-alert-content">
+                <strong>Saved Successfully!</strong>
+                <span>Employee information has been committed to the database.</span>
+            </div>
+            <button type="button" class="emp-alert-close" @onclick="() => saved = false">✕</button>
+        </div>
+    }
+
+    @if (pageError is not null)
+    {
+        <div class="emp-alert emp-alert-danger animate-in">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+            <div class="emp-alert-content">
+                <strong>Notification</strong>
+                <span>@pageError</span>
+            </div>
+            <button type="button" class="emp-alert-close" @onclick="() => pageError = null">✕</button>
+        </div>
+    }
+
+    @if (toastMessage is not null)
+    {
+        <div class="emp-toast @(toastLeaving ? "is-leaving" : "is-entering")" role="status">
+            <div class="emp-toast-icon">ℹ️</div>
+            <div class="emp-toast-content">@toastMessage</div>
+        </div>
+    }
+
+    <!-- Top Search & Quick Control Bar (Outside EditForm so Enter never submits the form) -->
+    <section class="emp-card emp-lookup-card">
+        <div class="emp-lookup-bar">
+            <div class="emp-lookup-input-group">
+                <label for="emp-code-input" class="emp-lookup-label">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+                    <span>Employee Code <strong class="req">*</strong></span>
+                </label>
+                <div class="emp-search-box">
+                    <input id="emp-code-input"
+                           data-employee-code
+                           @bind="searchEmployeeCode"
+                           @bind:event="oninput"
+                           @onkeyup="HandleEmployeeCodeKey"
+                           placeholder="Enter code (e.g. 10001) & press Enter"
+                           autocomplete="off"
+                           class="emp-search-input" />
+                    <button id="emp-search-btn" type="button" class="emp-btn emp-btn-search" @onclick="LookupCodeManual" title="Find employee by code">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+                        <span>Find</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="emp-lookup-actions">
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="NewEmployee" title="Start new employee entry">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
+                    <span>New Entry</span>
+                </button>
+
+                @if (isEdit && !isUnlocked)
+                {
+                    <button type="button" class="emp-btn emp-btn-unlock" @onclick="OpenPasswordDialog">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+                        <span>Unlock to Edit</span>
+                    </button>
+                }
+                else if (isEdit && isUnlocked)
+                {
+                    <button type="button" class="emp-btn emp-btn-lock" @onclick="LockEditing">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+                        <span>Lock Editing</span>
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (isEdit && !isUnlocked)
+        {
+            <div class="emp-lock-banner">
+                <div class="emp-lock-icon">🔒</div>
+                <div class="emp-lock-message">
+                    <strong>Record is View-Only</strong>
+                    <span>This employee profile is locked against accidental changes. Click <strong>"Unlock to Edit"</strong> and enter your password to edit fields.</span>
+                </div>
+            </div>
+        }
+        else if (isEdit && isUnlocked)
+        {
+            <div class="emp-unlock-banner">
+                <div class="emp-unlock-icon">🔓</div>
+                <div class="emp-unlock-message">
+                    <strong>Unlocked for Editing</strong>
+                    <span>Password verified. You can update any fields and click <strong>"Update Employee Profile"</strong> at the bottom to commit changes.</span>
+                </div>
+            </div>
+        }
+    </section>
+
+    <!-- Main Workspace -->
+    <div class="emp-workspace">
+        <EditForm @key="employee.EmployeeId" Model="employee" OnValidSubmit="Save" class="emp-main-form">
+            <DataAnnotationsValidator />
+
+            <!-- Live Computed Metrics Bar (Age, LOS, Basic Salary, Leave Summary) -->
+            @if (isEdit || employee.Gross > 0)
+            {
+                <div class="emp-metrics-grid">
+                    <!-- Age (বয়স) -->
+                    <div class="emp-metric-card">
+                        <div class="emp-metric-icon age" title="Employee Age">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        </div>
+                        <div class="emp-metric-body">
+                            <span class="emp-metric-lbl">Age (বয়স)</span>
+                            <span class="emp-metric-val">@CalculateAge(employee.DateOfBirth)</span>
+                        </div>
+                    </div>
+
+                    <!-- Length of Service (LOS) -->
+                    <div class="emp-metric-card">
+                        <div class="emp-metric-icon los" title="Length of Service & Tenure">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+                        </div>
+                        <div class="emp-metric-body">
+                            <span class="emp-metric-lbl">Length of Service (LOS)</span>
+                            <span class="emp-metric-val">@CalculateLos(employee.DateOfJoining, employee.CloseDate)</span>
+                        </div>
+                    </div>
+
+                    <!-- Calculated Basic (মূল বেতন) -->
+                    <div class="emp-metric-card">
+                        <div class="emp-metric-icon basic" title="Calculated Basic Salary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="3"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
+                        </div>
+                        <div class="emp-metric-body">
+                            <span class="emp-metric-lbl">Calculated Basic (মূল বেতন)</span>
+                            <span class="emp-metric-val">৳ @CalculateBasicSalary(employee.Gross, employee.SalaryRuleId).ToString("N0")</span>
+                        </div>
+                    </div>
+
+                    <!-- Leave Balance Widget with Hover Popover -->
+                    @if (isEdit && leaveSummary.HasData)
+                    {
+                        <div class="emp-metric-card emp-metric-card-leave">
+                            <div class="emp-metric-icon leave" title="Leave Balance & History">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><polyline points="9 16 11 18 15 14"></polyline></svg>
+                            </div>
+                            <div class="emp-metric-body">
+                                <span class="emp-metric-lbl">Leave Balance (@DateTime.Today.Year) ℹ️</span>
+                                <span class="emp-metric-val">CL: @leaveSummary.CasualLeave.ToString("0.#") | SL: @leaveSummary.SickLeave.ToString("0.#") | EL: @leaveSummary.EarnLeave.ToString("0.#")</span>
+                            </div>
+
+                            <!-- Hover Popover Dropdown -->
+                            <div class="emp-leave-hover-popover">
+                                <div class="emp-leave-popover-header">
+                                    <span>📊</span>
+                                    <span>Leave Balance Summary (@DateTime.Today.Year)</span>
+                                </div>
+                                <div class="emp-leave-popover-items">
+                                    <div class="emp-leave-popover-item cl">
+                                        <span>Casual Leave (CL)</span>
+                                        <strong>@leaveSummary.CasualLeave.ToString("0.##") Days</strong>
+                                    </div>
+                                    <div class="emp-leave-popover-item sl">
+                                        <span>Sick Leave (SL)</span>
+                                        <strong>@leaveSummary.SickLeave.ToString("0.##") Days</strong>
+                                    </div>
+                                    <div class="emp-leave-popover-item el">
+                                        <span>Earn Leave (EL)</span>
+                                        <strong>@leaveSummary.EarnLeave.ToString("0.##") Days</strong>
+                                    </div>
+                                </div>
+                                <div class="emp-leave-popover-divider"></div>
+                                <div class="emp-leave-popover-el-breakdown">
+                                    <span class="el-title">Earn Leave (EL) Breakdown:</span>
+                                    <div class="el-math">
+                                        EL = <span class="calc">@leaveSummary.CalculatedEl.ToString("0.##") (Calc)</span>
+                                        − <span class="obs">@leaveSummary.ObservedEl.ToString("0.##") (Obs)</span>
+                                        + <span class="carry">@leaveSummary.CarryEl.ToString("0.##") (Carry)</span>
+                                    </div>
+                                    <div class="el-total">Available: <strong>@leaveSummary.EarnLeave.ToString("0.##")</strong> Days</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Locked Fields Container -->
+            <div class="emp-form-body @(canEdit ? string.Empty : "is-locked") @(showLockShake ? "is-shaking" : string.Empty)" @onclick="ShowUnlockHint">
+                @if (showUnlockHint)
+                {
+                    <span class="emp-unlock-floating-tooltip" style="@($"left:{unlockHintX}px;top:{unlockHintY}px")">
+                        🔒 Please unlock first to edit
+                    </span>
+                }
+
+                <div class="emp-form-grid-layout">
+                    <!-- Column Left / Primary: Basic Info & Profile Details -->
+                    <div class="emp-primary-stack">
+
+                        <!-- SECTION 1: Basic & Identity -->
+                        <section class="emp-card emp-section-card">
+                            <div class="emp-card-header">
+                                <div class="emp-card-icon-wrap basic-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                </div>
+                                <div class="emp-card-header-text">
+                                    <h2>Basic & Identity Information</h2>
+                                    <p>Core demographic profile, identity numbers, and personal identifiers</p>
+                                </div>
+                            </div>
+                            <div class="emp-card-body">
+                                <fieldset disabled="@(!canEdit)" class="emp-fieldset">
+                                    <div class="emp-grid emp-grid-4">
+                                        <!-- Row 1: English Name (2 cols) + ERP Code (1 col) + Joining Date (1 col) -->
+                                        <div class="emp-field col-span-2">
+                                            <label class="emp-label">Employee Name <span class="req">*</span></label>
+                                            <InputText @bind-Value="employee.EmployeeName" class="emp-input emp-input-bold" placeholder="Full name in English" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">ERP Code</label>
+                                            <InputText @bind-Value="employee.ErpCode" class="emp-input" placeholder="e.g. ERP-1002" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Joining Date <span class="req">*</span></label>
+                                            <InputDate @bind-Value="employee.DateOfJoining" class="emp-input" />
+                                        </div>
+
+                                        <!-- Row 2: Bangla Name (2 cols, directly under English Name) + Date of Birth (1 col) + Blood Group (1 col) -->
+                                        <div class="emp-field col-span-2">
+                                            <label class="emp-label">Employee Name (Bangla)</label>
+                                            <InputText @bind-Value="employee.BanglaEmployeeName" class="emp-input" placeholder="নাম বাংলায় লিখুন" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Date of Birth</label>
+                                            <InputDate @bind-Value="employee.DateOfBirth" class="emp-input" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Blood Group</label>
+                                            <InputSelect @bind-Value="employee.BloodGroup" class="emp-input emp-select">
+                                                <option value="">Select</option>
+                                                <option value="A+">A+</option>
+                                                <option value="A-">A-</option>
+                                                <option value="B+">B+</option>
+                                                <option value="B-">B-</option>
+                                                <option value="O+">O+</option>
+                                                <option value="O-">O-</option>
+                                                <option value="AB+">AB+</option>
+                                                <option value="AB-">AB-</option>
+                                            </InputSelect>
+                                        </div>
+
+                                        <!-- Row 3: Personal Status details -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Gender</label>
+                                            <InputSelect @bind-Value="employee.Gender" class="emp-input emp-select">
+                                                <option value="MALE">MALE</option>
+                                                <option value="FEMALE">FEMALE</option>
+                                                <option value="OTHER">OTHER</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Religion</label>
+                                            <InputSelect @bind-Value="employee.Religion" class="emp-input emp-select">
+                                                <option value="ISLAM">ISLAM</option>
+                                                <option value="HINDUISM">HINDUISM</option>
+                                                <option value="CHRISTIANITY">CHRISTIANITY</option>
+                                                <option value="BUDDHISM">BUDDHISM</option>
+                                                <option value="OTHER">OTHER</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="emp-field col-span-2">
+                                            <label class="emp-label">Marital Status</label>
+                                            <InputSelect @bind-Value="employee.MaritalStatus" class="emp-input emp-select">
+                                                <option value="SINGLE">SINGLE</option>
+                                                <option value="MARRIED">MARRIED</option>
+                                                <option value="DIVORCED">DIVORCED</option>
+                                                <option value="WIDOWED">WIDOWED</option>
+                                            </InputSelect>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+                        </section>
+
+                        <!-- SECTION 2: Official & Employment Details -->
+                        <section class="emp-card emp-section-card">
+                            <div class="emp-card-header">
+                                <div class="emp-card-icon-wrap official-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                                </div>
+                                <div class="emp-card-header-text">
+                                    <h2>Official & Organization Details</h2>
+                                    <p>Departmental placement, job designation, shifts, and salary parameters</p>
+                                </div>
+                            </div>
+                            <div class="emp-card-body">
+                                <fieldset disabled="@(!canEdit)" class="emp-fieldset">
+                                    <div class="emp-grid emp-grid-4">
+                                        <LookupSelect Label="Unit *" Options="lookups.Units" @bind-Value="employee.UnitId" />
+                                        <LookupSelect Label="Category *" Options="lookups.Categories" @bind-Value="employee.CategoryId" />
+                                        <LookupSelect Label="Department *" Options="lookups.Departments" @bind-Value="employee.DepartmentId" />
+                                        <LookupSelect Label="Section *" Options="lookups.Sections" @bind-Value="employee.SectionId" />
+                                        <LookupSelect Label="Line / Group *" Options="lookups.Lines" @bind-Value="employee.LineId" />
+                                        <LookupSelect Label="Designation *" Options="lookups.Designations" @bind-Value="employee.DesignationId" />
+                                        <LookupSelect Label="Shift *" Options="lookups.Shifts" @bind-Value="employee.ShiftId" />
+                                        <LookupSelect Label="Salary Rule *" Options="lookups.SalaryRules" @bind-Value="employee.SalaryRuleId" />
+                                        <LookupSelect Label="Floor *" Options="lookups.Floors" @bind-Value="employee.FloorId" />
+                                        
+                                        <div class="emp-field">
+                                            <label class="emp-label">Employee Grade</label>
+                                            <InputText @bind-Value="employee.EmployeeGrade" class="emp-input" placeholder="e.g. Grade-4" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Gross Salary (৳)</label>
+                                            <InputNumber @bind-Value="employee.Gross" class="emp-input emp-input-number" placeholder="0.00" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Basic Salary (৳) <span class="emp-label-calc-tag">Auto</span></label>
+                                            <input type="text" class="emp-input emp-input-readonly emp-input-number" readonly tabindex="-1"
+                                                   value="@(employee.Gross > 0 ? $"৳ {CalculateBasicSalary(employee.Gross, employee.SalaryRuleId):N0}" : "৳ 0")"
+                                                   title="Calculated automatically from Gross and Salary Rule" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Weekend</label>
+                                            <div class="emp-select-wrap">
+                                                <InputSelect @bind-Value="employee.Weekend" class="emp-input emp-select">
+                                                    <option value="N/A">N/A</option>
+                                                    <option value="Friday">Friday</option>
+                                                    <option value="Saturday">Saturday</option>
+                                                    <option value="Sunday">Sunday</option>
+                                                </InputSelect>
+                                                <span class="emp-select-arrow" aria-hidden="true">
+                                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Proximity Card No.</label>
+                                            <InputText @bind-Value="employee.ProximityNo" class="emp-input" placeholder="Proximity RFID" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">License / Reg No.</label>
+                                            <InputText @bind-Value="employee.LicenseNo" class="emp-input" placeholder="Driving / Gov license" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Employee Status</label>
+                                            <div class="emp-select-wrap emp-status-select-wrap">
+                                                <span class="emp-status-dot @GetStatusClass(employee.EmployeeStatus)"></span>
+                                                <InputSelect @bind-Value="employee.EmployeeStatus" class="@($"emp-input emp-select status-select {GetStatusClass(employee.EmployeeStatus)}")">
+                                                    <option value="Active">Active</option>
+                                                    <option value="Close">Close</option>
+                                                    <option value="Release">Release</option>
+                                                    <option value="Maternity">Maternity</option>
+                                                    <option value="Inactive">Inactive</option>
+                                                </InputSelect>
+                                                <span class="emp-select-arrow" aria-hidden="true">
+                                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @if (!employee.EmployeeStatus.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <div class="emp-status-conditional-box">
+                                            <div class="emp-status-conditional-title">
+                                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                                                <span>Status Details (Inactive / Departure / Maternity)</span>
+                                            </div>
+                                            <div class="emp-grid emp-grid-3">
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Close / Release Date <span class="req">*</span></label>
+                                                    <InputDate @bind-Value="employee.CloseDate" class="emp-input" />
+                                                </div>
+                                                <div class="emp-field col-span-2">
+                                                    <label class="emp-label">Status Reason</label>
+                                                    <InputText @bind-Value="employee.StatusReason" class="emp-input" placeholder="State reason for closure, release or leave" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <!-- Payroll Facilities & Allowances -->
+                                    <div class="emp-facilities-wrap">
+                                        <span class="emp-subheading">Entitlements & Payroll Facilities</span>
+                                        <div class="emp-facility-chips">
+                                            <label class="emp-toggle-chip @(employee.OverTime ? "is-checked" : "")">
+                                                <InputCheckbox @bind-Value="employee.OverTime" />
+                                                <span class="emp-toggle-box"></span>
+                                                <span class="emp-toggle-title">Overtime (OT)</span>
+                                            </label>
+                                            <label class="emp-toggle-chip @(employee.Transport ? "is-checked" : "")">
+                                                <InputCheckbox @bind-Value="employee.Transport" />
+                                                <span class="emp-toggle-box"></span>
+                                                <span class="emp-toggle-title">Transport Facility</span>
+                                            </label>
+                                            <label class="emp-toggle-chip @(employee.QuarterHolder ? "is-checked" : "")">
+                                                <InputCheckbox @bind-Value="employee.QuarterHolder" />
+                                                <span class="emp-toggle-box"></span>
+                                                <span class="emp-toggle-title">Quarter Holder</span>
+                                            </label>
+                                            <label class="emp-toggle-chip @(employee.TaxHolder ? "is-checked" : "")">
+                                                <InputCheckbox @bind-Value="employee.TaxHolder" />
+                                                <span class="emp-toggle-box"></span>
+                                                <span class="emp-toggle-title">Tax Holder</span>
+                                            </label>
+                                            <label class="emp-toggle-chip @(employee.EarnLeaveHolder ? "is-checked" : "")">
+                                                <InputCheckbox @bind-Value="employee.EarnLeaveHolder" />
+                                                <span class="emp-toggle-box"></span>
+                                                <span class="emp-toggle-title">Earn Leave</span>
+                                            </label>
+                                            <label class="emp-toggle-chip @(employee.Contractual ? "is-checked" : "")">
+                                                <InputCheckbox @bind-Value="employee.Contractual" />
+                                                <span class="emp-toggle-box"></span>
+                                                <span class="emp-toggle-title">Contractual</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+                        </section>
+
+                        <!-- SECTION 3: Personal, Nominee & Banking (with Bilingual Support) -->
+                        <section class="emp-card emp-section-card">
+                            <div class="emp-card-header">
+                                <div class="emp-card-icon-wrap personal-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                </div>
+                                <div class="emp-card-header-text">
+                                    <h2>Personal, Nominee & Banking Details</h2>
+                                    <p>Family background, national identity, emergency contacts, and disbursement account</p>
+                                </div>
+                            </div>
+                            <div class="emp-card-body">
+                                <fieldset disabled="@(!canEdit)" class="emp-fieldset">
+                                    <div class="emp-grid emp-grid-3">
+                                        <!-- Father Names (English & Bangla) -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Father's Name</label>
+                                            <InputText @bind-Value="employee.FatherName" class="emp-input" placeholder="Father's English name" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Father's Name (Bangla)</label>
+                                            <InputText @bind-Value="employee.BanglaFatherName" class="emp-input" placeholder="পিতার নাম বাংলায়" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">National ID (NID)</label>
+                                            <InputText @bind-Value="employee.NationalId" class="emp-input" placeholder="Smart NID / 10-17 digits" />
+                                        </div>
+
+                                        <!-- Mother Names (English & Bangla) -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Mother's Name</label>
+                                            <InputText @bind-Value="employee.MotherName" class="emp-input" placeholder="Mother's English name" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Mother's Name (Bangla)</label>
+                                            <InputText @bind-Value="employee.BanglaMotherName" class="emp-input" placeholder="মাতার নাম বাংলায়" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Contact Number</label>
+                                            <InputText @bind-Value="employee.ContactNo" class="emp-input" placeholder="017XXXXXXXX" />
+                                        </div>
+
+                                        <!-- Spouse Names (English & Bangla) -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Spouse Name</label>
+                                            <InputText @bind-Value="employee.SpouseName" class="emp-input" placeholder="Spouse English name" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Spouse Name (Bangla)</label>
+                                            <InputText @bind-Value="employee.BanglaSpouseName" class="emp-input" placeholder="স্বামী/স্ত্রীর নাম বাংলায়" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Email Address</label>
+                                            <InputText @bind-Value="employee.Email" class="emp-input" placeholder="employee@example.com" />
+                                        </div>
+
+                                        <!-- Nominee Information -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Nominee Name</label>
+                                            <InputText @bind-Value="employee.BeneficiaryName" class="emp-input" placeholder="Beneficiary / Nominee" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Nominee Name (Bangla)</label>
+                                            <InputText @bind-Value="employee.BanglaBeneficiaryName" class="emp-input" placeholder="নমিনির নাম বাংলায়" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Relationship with Nominee</label>
+                                            <InputText @bind-Value="employee.RelationWithBeneficiary" class="emp-input" placeholder="e.g. Wife / Brother / Father" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Nominee Contact No.</label>
+                                            <InputText @bind-Value="employee.NomineeCellNo" class="emp-input" placeholder="01XXXXXXXXX" />
+                                        </div>
+
+                                        <!-- Education & Experience -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Educational Qualification</label>
+                                            <InputText @bind-Value="employee.Education" class="emp-input" placeholder="e.g. B.Sc / HSC / SSC" />
+                                        </div>
+                                        <div class="emp-field">
+                                            <label class="emp-label">Prior Experience</label>
+                                            <InputText @bind-Value="employee.EmploymentExperience" class="emp-input" placeholder="Years / previous companies" />
+                                        </div>
+
+                                        <!-- Banking & Payment Method -->
+                                        <div class="emp-field">
+                                            <label class="emp-label">Salary Payment Method</label>
+                                            <InputSelect @bind-Value="employee.BankAccountType" class="emp-input emp-select">
+                                                <option value="N">💵 Cash</option>
+                                                <option value="Y">🏦 Bank Account</option>
+                                                <option value="M">📱 Mobile Banking (bKash/Nagad)</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="emp-field col-span-2">
+                                            <label class="emp-label">Account / Mobile Wallet Number</label>
+                                            <InputText @bind-Value="employee.AccountNo" class="emp-input" placeholder="Account No. / bKash or Rocket No." />
+                                        </div>
+
+                                        <!-- Remarks -->
+                                        <div class="emp-field col-span-3">
+                                            <label class="emp-label">Special Remarks / Notes</label>
+                                            <InputTextArea @bind-Value="employee.Remarks" class="emp-input emp-textarea" rows="2" placeholder="Any additional notes or comments regarding this employee..." />
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+                        </section>
+
+                        <!-- SECTION 4: Address Information (English & Bangla) -->
+                        <section class="emp-card emp-section-card">
+                            <div class="emp-card-header">
+                                <div class="emp-card-icon-wrap address-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                </div>
+                                <div class="emp-card-header-text">
+                                    <h2>Address Information (বর্তমান ও স্থায়ী ঠিকানা)</h2>
+                                    <p>Current residence and permanent home district address records with bilingual support</p>
+                                </div>
+                                @if (canEdit)
+                                {
+                                    <button type="button" class="emp-btn-copy-address" @onclick="CopyPresentToPermanent" title="Copy Present address to Permanent address">
+                                        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12a1.5 1.5 0 01.439 1.061V16.5A1.5 1.5 0 0115.5 18h-7A1.5 1.5 0 017 16.5v-13z"/></svg>
+                                        <span>Copy Present to Permanent</span>
+                                    </button>
+                                }
+                            </div>
+                            <div class="emp-card-body">
+                                <fieldset disabled="@(!canEdit)" class="emp-fieldset">
+                                    <div class="emp-address-layout">
+                                        <!-- Present Address Card -->
+                                        <div class="emp-address-card">
+                                            <div class="emp-address-title">
+                                                <span class="emp-address-badge">Present Residence (বর্তমান ঠিকানা)</span>
+                                            </div>
+                                            <div class="emp-grid emp-grid-2">
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Village / Road</label>
+                                                    <InputText @bind-Value="employee.PresentVillage" class="emp-input" placeholder="House / Village" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">গ্রাম / বাড়ি (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPresentVillage" class="emp-input" placeholder="গ্রাম / বাড়ি" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Post Office</label>
+                                                    <InputText @bind-Value="employee.PresentPost" class="emp-input" placeholder="Post Office" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">ডাকঘর (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPresentPost" class="emp-input" placeholder="ডাকঘর" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Police Station (Thana)</label>
+                                                    <InputText @bind-Value="employee.PresentPoliceStation" class="emp-input" placeholder="Thana" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">থানা (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPresentPoliceStation" class="emp-input" placeholder="থানা" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">District</label>
+                                                    <InputText @bind-Value="employee.PresentDistrict" class="emp-input" placeholder="District" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">জেলা (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPresentDistrict" class="emp-input" placeholder="জেলা" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Permanent Address Card -->
+                                        <div class="emp-address-card">
+                                            <div class="emp-address-title">
+                                                <span class="emp-address-badge permanent">Permanent Home (স্থায়ী ঠিকানা)</span>
+                                            </div>
+                                            <div class="emp-grid emp-grid-2">
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Village / Road</label>
+                                                    <InputText @bind-Value="employee.PermanentVillage" class="emp-input" placeholder="House / Village" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">গ্রাম / বাড়ি (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPermanentVillage" class="emp-input" placeholder="গ্রাম / বাড়ি" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Post Office</label>
+                                                    <InputText @bind-Value="employee.PermanentPost" class="emp-input" placeholder="Post Office" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">ডাকঘর (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPermanentPost" class="emp-input" placeholder="ডাকঘর" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">Police Station (Thana)</label>
+                                                    <InputText @bind-Value="employee.PermanentPoliceStation" class="emp-input" placeholder="Thana" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">থানা (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPermanentPoliceStation" class="emp-input" placeholder="থানা" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">District</label>
+                                                    <InputText @bind-Value="employee.PermanentDistrict" class="emp-input" placeholder="District" />
+                                                </div>
+                                                <div class="emp-field">
+                                                    <label class="emp-label">জেলা (বাংলায়)</label>
+                                                    <InputText @bind-Value="employee.BanglaPermanentDistrict" class="emp-input" placeholder="জেলা" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+                        </section>
+
+                    </div>
+
+                    <!-- Column Right / Documents (Photo & Signature Card) -->
+                    <div class="emp-sidebar-stack">
+                        <section class="emp-card emp-section-card emp-doc-card">
+                            <div class="emp-card-header">
+                                <div class="emp-card-icon-wrap doc-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                </div>
+                                <div class="emp-card-header-text">
+                                    <h2>Documents</h2>
+                                    <p>Official Photo & Signature</p>
+                                </div>
+                            </div>
+                            <div class="emp-card-body">
+                                <fieldset disabled="@(!canEdit)" class="emp-fieldset">
+                                    <!-- Photo Widget -->
+                                    <div class="emp-asset-widget">
+                                        <div class="emp-asset-header">
+                                            <span class="emp-asset-label">Employee Photograph</span>
+                                            @if (employee.Photo is not null && canEdit)
+                                            {
+                                                <div class="emp-asset-quick-actions">
+                                                    <button type="button" class="emp-btn-crop-tool" @onclick="@(() => TriggerCropExisting("photo"))" title="Adjust Crop">✂️ Crop</button>
+                                                    <button type="button" class="emp-btn-remove-tool" @onclick="@(() => RemoveImage("photo"))" title="Remove Photo">🗑️</button>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="emp-photo-frame">
+                                            @if (employee.Photo is not null)
+                                            {
+                                                <img src="@ImageSource(employee.Photo)" alt="Employee photo" class="emp-photo-img" />
+                                            }
+                                            else
+                                            {
+                                                <div class="emp-asset-placeholder">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                    <span>No Photo Uploaded</span>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="emp-asset-upload-wrap">
+                                            <label class="emp-file-upload-btn">
+                                                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M1 5.25A2.25 2.25 0 013.25 3h13.5A2.25 2.25 0 0119 5.25v9.5A2.25 2.25 0 0116.75 17H3.25A2.25 2.25 0 011 14.75v-9.5zm1.5 5.81v3.69c0 .414.336.75.75.75h13.5a.75.75 0 00.75-.75v-2.69l-2.22-2.22a.75.75 0 00-1.06 0l-1.91 1.91-4.72-4.72a.75.75 0 00-1.06 0L2.5 11.06zm10.75-4.81a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z" clip-rule="evenodd"/></svg>
+                                                <span>@(employee.Photo is null ? "Upload Photo" : "Replace Photo")</span>
+                                                <InputFile OnChange="PhotoSelected" accept="image/png,image/jpeg,image/webp" />
+                                            </label>
+                                            <small class="emp-file-hint">Passport standard · Max 2 MB</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="emp-doc-divider"></div>
+
+                                    <!-- Signature Widget -->
+                                    <div class="emp-asset-widget">
+                                        <div class="emp-asset-header">
+                                            <span class="emp-asset-label">Employee Signature</span>
+                                            @if (employee.Signature is not null && canEdit)
+                                            {
+                                                <div class="emp-asset-quick-actions">
+                                                    <button type="button" class="emp-btn-crop-tool" @onclick="@(() => TriggerCropExisting("signature"))" title="Adjust Crop">✂️ Crop</button>
+                                                    <button type="button" class="emp-btn-remove-tool" @onclick="@(() => RemoveImage("signature"))" title="Remove Signature">🗑️</button>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="emp-signature-frame">
+                                            @if (employee.Signature is not null)
+                                            {
+                                                <img src="@ImageSource(employee.Signature)" alt="Employee signature" class="emp-signature-img" />
+                                            }
+                                            else
+                                            {
+                                                <div class="emp-asset-placeholder signature">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                    <span>No Signature Uploaded</span>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="emp-asset-upload-wrap">
+                                            <label class="emp-file-upload-btn">
+                                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                                                <span>@(employee.Signature is null ? "Upload Signature" : "Replace Signature")</span>
+                                                <InputFile OnChange="SignatureSelected" accept="image/png,image/jpeg,image/webp" />
+                                            </label>
+                                            <small class="emp-file-hint">White background · Auto ink enhanced</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="emp-doc-divider"></div>
+
+                                    <!-- Character Assessment / Evaluation Block -->
+                                    <div class="emp-asset-widget emp-char-asset-widget">
+                                        <div class="emp-asset-header">
+                                            <span class="emp-asset-label">Evaluation & Assessment</span>
+                                        </div>
+                                        <button type="button"
+                                                class="emp-btn-char-block @(!isEdit ? "is-disabled" : string.Empty)"
+                                                disabled="@(!isEdit)"
+                                                @onclick="OpenCharDrawerAsync"
+                                                title="@(isEdit ? "Character Assessment & Evaluation (চারিত্রিক মূল্যায়ন)" : "Please select/find an employee first")">
+                                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+                                            <span>Character Assessment (চারিত্রিক মূল্যায়ন)</span>
+                                        </button>
+                                        <small class="emp-file-hint">Monthly evaluation & conduct certificate records</small>
+                                    </div>
+
+                                    @if (assetError is not null)
+                                    {
+                                        <p class="emp-asset-error animate-in">⚠️ @assetError</p>
+                                    }
+                                </fieldset>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sticky Bottom Action Footer -->
+            <div class="emp-form-actions-bar">
+                <div class="emp-actions-left">
+                    <button type="button" class="emp-btn emp-btn-clear" @onclick="NewEmployee">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+                        <span>Clear / Reset</span>
+                    </button>
+                </div>
+                <div class="emp-actions-right">
+                    @if (isEdit && !isUnlocked)
+                    {
+                        <button type="button" class="emp-btn emp-btn-unlock-cta" @onclick="OpenPasswordDialog">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+                            <span>Unlock to Edit Record</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="emp-btn emp-btn-primary">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
+                            <span>@(isEdit ? "Update Employee Profile" : "Save Employee Profile")</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<!-- Password Unlock Modal -->
+@if (showPasswordDialog)
+{
+    <div class="emp-modal-backdrop animate-fade">
+        <section class="emp-modal emp-password-modal animate-scale" role="dialog" aria-modal="true">
+            <div class="emp-modal-header">
+                <div class="emp-modal-icon-wrap password-shield">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <div>
+                    <h2>Verify Your Password</h2>
+                    <p>Enter your login password to unlock editing for <strong>@employee.EmployeeCode</strong>.</p>
+                </div>
+                <button type="button" class="emp-modal-close" @onclick="ClosePasswordDialog">✕</button>
+            </div>
+            <div class="emp-modal-body">
+                <label class="emp-label">Account Password</label>
+                <div class="emp-password-input-wrap">
+                    <input type="password" @bind="verificationPassword" @bind:event="oninput" @onkeyup="HandlePasswordKey" autocomplete="current-password" autofocus class="emp-input" placeholder="Enter password & press Enter" />
+                </div>
+                @if (passwordError is not null)
+                {
+                    <div class="emp-validation-error animate-in">⚠️ @passwordError</div>
+                }
+            </div>
+            <div class="emp-modal-footer">
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="ClosePasswordDialog">Cancel</button>
+                <button type="button" class="emp-btn emp-btn-primary" @onclick="VerifyPassword">Verify & Unlock</button>
+            </div>
+        </section>
+    </div>
+}
+
+<!-- Crop Modal -->
+@if (showCropDialog && cropSource is not null)
+{
+    <div class="emp-modal-backdrop animate-fade">
+        <section class="emp-modal emp-crop-modal animate-scale" role="dialog" aria-modal="true">
+            <header class="emp-crop-header">
+                <div class="emp-crop-header-title">
+                    <div class="emp-crop-badge-icon">
+                        @(cropTarget == "signature" ? "✎" : "📷")
+                    </div>
+                    <div>
+                        <h2>Crop @(cropTarget == "signature" ? "Signature" : "Employee Photograph")</h2>
+                        <p>@(cropTarget == "signature" ? "Drag frame and zoom to frame signature on white background" : "Drag frame and zoom to frame passport size standard portrait")</p>
+                    </div>
+                </div>
+                <button type="button" class="emp-modal-close" @onclick="CancelCrop" aria-label="Close">✕</button>
+            </header>
+
+            <div class="emp-crop-workspace" id="crop-workspace">
+                <img src="@cropSource" style="transform:scale(@cropZoom.ToString(System.Globalization.CultureInfo.InvariantCulture))" alt="Crop workspace" />
+                <div class="emp-crop-frame @(cropTarget == "signature" ? "signature-frame" : "photo-frame")" data-crop-frame>
+                    <span class="crop-corner tl"></span>
+                    <span class="crop-corner tr"></span>
+                    <span class="crop-corner bl"></span>
+                    <span class="crop-corner br"></span>
+                </div>
+                <div class="emp-crop-zoom-bar">
+                    <button type="button" class="emp-zoom-btn" @onclick="ZoomOut" title="Zoom Out">−</button>
+                    <span class="emp-zoom-label">@((cropZoom * 100).ToString("0"))%</span>
+                    <button type="button" class="emp-zoom-btn" @onclick="ZoomIn" title="Zoom In">+</button>
+                </div>
+            </div>
+
+            <footer class="emp-crop-footer">
+                <div class="emp-crop-helper">
+                    <span>💡 <strong>Tip:</strong> Drag the blue frame to position. Use + / − to zoom.</span>
+                </div>
+                <div class="emp-crop-buttons">
+                    <button type="button" class="emp-btn emp-btn-secondary" @onclick="CancelCrop">Cancel</button>
+                    <button type="button" class="emp-btn emp-btn-primary" @onclick="ApplyCrop">✓ Apply & Save Crop</button>
+                </div>
+            </footer>
+        </section>
+    </div>
+}
+
+<!-- Character Certificate / Assessment Slide-Over Drawer -->
+@if (showCharDrawer)
+{
+    <div class="emp-drawer-backdrop" @onclick="CloseCharDrawer"></div>
+    <aside class="emp-drawer-panel" role="dialog" aria-modal="true">
+        <header class="emp-drawer-header">
+            <div>
+                <h3>
+                    <span>📜</span>
+                    <span>Character Assessment & Evaluation</span>
+                </h3>
+                <p>চারিত্রিক মূল্যায়ন — @employee.EmployeeName (@employee.EmployeeCode)</p>
+            </div>
+            <button type="button" class="emp-drawer-close" @onclick="CloseCharDrawer" title="Close Drawer">✕</button>
+        </header>
+
+        <div class="emp-drawer-content">
+            @if (!canEdit)
+            {
+                <div class="emp-drawer-lock-notice">
+                    <div class="emp-drawer-lock-text">
+                        <strong>🔒 View Only (Locked)</strong>
+                        <span>Employee is locked. To modify or delete evaluations, please unlock first.</span>
+                    </div>
+                    <button type="button" class="emp-btn emp-btn-unlock" @onclick="OpenPasswordDialog" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;">
+                        <svg viewBox="0 0 20 20" fill="currentColor" style="width:13px;height:13px"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+                        <span>Unlock</span>
+                    </button>
+                </div>
+            }
+
+            @if (charCertificates.Count == 0)
+            {
+                <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+                    <span>Loading certificate records...</span>
+                </div>
+            }
+            else
+            {
+                @foreach (var item in charCertificates)
+                {
+                    <div class="emp-char-row @(!canEdit ? "is-disabled" : string.Empty)">
+                        <div class="emp-char-row-header-wrap">
+                            <span class="emp-char-row-header">@item.RecordDate.ToString("MMMM - yyyy")</span>
+                            @if (!string.IsNullOrEmpty(item.Rating) || !string.IsNullOrEmpty(item.Remarks))
+                            {
+                                <button type="button"
+                                        class="emp-btn-char-clear"
+                                        @onclick="@(() => ClearCharRating(item))"
+                                        title="Clear / Delete this month's evaluation">
+                                    ✕ Clear (মুছুন)
+                                </button>
+                            }
+                        </div>
+                        <div class="emp-char-radios">
+                            <button type="button"
+                                    class="emp-char-rating-btn @(IsRatingMatch(item.Rating, "Satisfactory") ? "is-selected good" : string.Empty)"
+                                    @onclick="@(() => SelectRating(item, "Satisfactory"))">
+                                <span class="dot"></span>
+                                <span>Satisfactory (সন্তোষজনক)</span>
+                            </button>
+                            <button type="button"
+                                    class="emp-char-rating-btn @(IsRatingMatch(item.Rating, "Moderate") ? "is-selected medium" : string.Empty)"
+                                    @onclick="@(() => SelectRating(item, "Moderate"))">
+                                <span class="dot"></span>
+                                <span>Moderate (মধ্যম)</span>
+                            </button>
+                            <button type="button"
+                                    class="emp-char-rating-btn @(IsRatingMatch(item.Rating, "Unsatisfactory") ? "is-selected poor" : string.Empty)"
+                                    @onclick="@(() => SelectRating(item, "Unsatisfactory"))">
+                                <span class="dot"></span>
+                                <span>Unsatisfactory (অসন্তোষজনক)</span>
+                            </button>
+                        </div>
+                        <div class="emp-char-note-wrap">
+                            <span class="emp-char-note-lbl">Remarks (মন্তব্য):</span>
+                            <input type="text" class="emp-char-note-input" disabled="@(!canEdit)" placeholder="Notes / remarks..." @bind="item.Remarks" />
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <footer class="emp-drawer-footer">
+            <button type="button" class="emp-btn emp-btn-secondary" @onclick="CloseCharDrawer">Close</button>
+            @if (!canEdit)
+            {
+                <button type="button" class="emp-btn emp-btn-unlock" @onclick="OpenPasswordDialog">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="width:14px;height:14px"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+                    <span>Unlock to Edit</span>
+                </button>
+            }
+            else
+            {
+                <button type="button" class="emp-btn emp-btn-primary" @onclick="SaveCharCertificatesAsync" disabled="@isSavingChar">
+                    <span>@(isSavingChar ? "Saving..." : "Save Assessment (সংরক্ষণ করুন)")</span>
+                </button>
+            }
+        </footer>
+    </aside>
+}
+
+@code {
+    private EmployeeModel employee = new();
+    private string searchEmployeeCode = string.Empty;
+    private EmployeeLookups lookups = new();
+    private List<SalaryRuleDetail> salaryRuleDetails = [];
+    private EmployeeLeaveSummary leaveSummary = new();
+    private List<CharacterCertificateItem> charCertificates = [];
+    private string? pageError;
+    private string? assetError;
+    private string? toastMessage;
+    private string? passwordError;
+    private string? cropSource;
+    private string cropTarget = "photo";
+    private string verificationPassword = string.Empty;
+    private bool saved;
+    private bool isUnlocked;
+    private bool showPasswordDialog;
+    private bool showCropDialog;
+    private bool showCharDrawer;
+    private bool isSavingChar;
+    private bool toastLeaving;
+    private bool showLockShake;
+    private bool showUnlockHint;
+    private double cropZoom = 1;
+    private double unlockHintX;
+    private double unlockHintY;
+    private int toastVersion;
+
+    private bool isEdit => employee.EmployeeId > 0;
+    private bool canEdit => !isEdit || isUnlocked;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            lookups = await EmployeeRepository.GetLookupsAsync();
+            salaryRuleDetails = await EmployeeRepository.GetSalaryRuleDetailsAsync();
+            if (!isEdit) SetDefaults();
+        }
+        catch
+        {
+            pageError = "Employee lookup options could not be loaded from the database.";
+        }
+    }
+
+    private void SetDefaults()
+    {
+        employee.UnitId = lookups.Units.FirstOrDefault()?.Id ?? 0;
+        employee.CategoryId = lookups.Categories.FirstOrDefault()?.Id ?? 0;
+        employee.DepartmentId = lookups.Departments.FirstOrDefault()?.Id ?? 0;
+        employee.SectionId = lookups.Sections.FirstOrDefault()?.Id ?? 0;
+        employee.LineId = lookups.Lines.FirstOrDefault()?.Id ?? 0;
+        employee.DesignationId = lookups.Designations.FirstOrDefault()?.Id ?? 0;
+        employee.ShiftId = lookups.Shifts.FirstOrDefault()?.Id ?? 0;
+        employee.SalaryRuleId = lookups.SalaryRules.FirstOrDefault()?.Id ?? 0;
+        employee.FloorId = lookups.Floors.FirstOrDefault()?.Id ?? 0;
+    }
+
+    private async Task LookupCodeManual()
+    {
+        var code = (string.IsNullOrWhiteSpace(searchEmployeeCode) ? employee.EmployeeCode : searchEmployeeCode)?.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            ShowToast("Please enter an employee code to search.");
+            return;
+        }
+
+        saved = false;
+        pageError = null;
+        toastMessage = null;
+
+        try
+        {
+            var found = await EmployeeRepository.GetEmployeeByCodeAsync(code);
+            if (found is not null)
+            {
+                employee = found;
+                searchEmployeeCode = found.EmployeeCode;
+                isUnlocked = false;
+                await LoadLeaveSummaryAsync();
+                ShowToast($"Employee found: {found.EmployeeName} ({found.EmployeeCode}). Unlock to edit.");
+            }
+            else
+            {
+                employee = new EmployeeModel { EmployeeCode = code };
+                searchEmployeeCode = code;
+                isUnlocked = false;
+                leaveSummary = new EmployeeLeaveSummary();
+                await LoadData();
+                ShowToast($"Employee code '{code}' not found. You can enter details to register as new.");
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Search error: {ex.Message}";
+        }
+    }
+
+    private async Task HandleEmployeeCodeKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await LookupCodeManual();
+        }
+    }
+
+    private async Task LoadLeaveSummaryAsync()
+    {
+        if (employee.EmployeeId > 0)
+        {
+            leaveSummary = await EmployeeRepository.GetEmployeeLeaveSummaryAsync(
+                employee.EmployeeId,
+                employee.EmployeeCode,
+                employee.DateOfJoining,
+                employee.CloseDate);
+        }
+        else
+        {
+            leaveSummary = new EmployeeLeaveSummary();
+        }
+    }
+
+    private static string CalculateAge(DateTime? dob)
+    {
+        if (dob is null || dob == DateTime.MinValue) return "N/A";
+        var today = DateTime.Today;
+        var birth = dob.Value;
+        if (birth > today) return "0 Days";
+
+        int years = today.Year - birth.Year;
+        int months = today.Month - birth.Month;
+        int days = today.Day - birth.Day;
+
+        if (days < 0)
+        {
+            months--;
+            var prevMonth = today.AddMonths(-1);
+            days += DateTime.DaysInMonth(prevMonth.Year, prevMonth.Month);
+        }
+        if (months < 0)
+        {
+            years--;
+            months += 12;
+        }
+
+        var parts = new List<string>();
+        if (years > 0) parts.Add($"{years} Yrs");
+        if (months > 0) parts.Add($"{months} Mon");
+        if (days > 0 || parts.Count == 0) parts.Add($"{days} Days");
+
+        return string.Join(", ", parts);
+    }
+
+    private static string CalculateLos(DateTime joinDate, DateTime? closeDate)
+    {
+        if (joinDate == DateTime.MinValue) return "N/A";
+        var end = closeDate ?? DateTime.Today;
+        if (joinDate > end) return "0 Days";
+
+        int years = end.Year - joinDate.Year;
+        int months = end.Month - joinDate.Month;
+        int days = end.Day - joinDate.Day;
+
+        if (days < 0)
+        {
+            months--;
+            var prevMonth = end.AddMonths(-1);
+            days += DateTime.DaysInMonth(prevMonth.Year, prevMonth.Month);
+        }
+        if (months < 0)
+        {
+            years--;
+            months += 12;
+        }
+
+        var parts = new List<string>();
+        if (years > 0) parts.Add($"{years} Yrs");
+        if (months > 0) parts.Add($"{months} Mon");
+        if (days > 0 || parts.Count == 0) parts.Add($"{days} Days");
+
+        return string.Join(", ", parts);
+    }
+
+    private decimal CalculateBasicSalary(decimal gross, int ruleId)
+    {
+        if (gross <= 0) return 0;
+        var rule = salaryRuleDetails.FirstOrDefault(r => r.RuleId == ruleId);
+        if (rule is null) return Math.Round(gross * 0.5m, 0);
+
+        decimal allowances = rule.RuleMedical + rule.RuleTransport + rule.RuleFood;
+        if (rule.RuleBasic == 40 || rule.RuleBasic == 50)
+        {
+            return Math.Round(gross * (rule.RuleBasic / 100m), 0);
+        }
+        if (rule.RuleHouseRent > 0)
+        {
+            decimal divisor = 1m + (rule.RuleHouseRent / 100m);
+            return Math.Round((gross - allowances) / divisor, 0);
+        }
+        return Math.Round(gross * 0.5m, 0);
+    }
+
+    private void CopyPresentToPermanent()
+    {
+        employee.PermanentVillage = employee.PresentVillage;
+        employee.BanglaPermanentVillage = employee.BanglaPresentVillage;
+        employee.PermanentPost = employee.PresentPost;
+        employee.BanglaPermanentPost = employee.BanglaPresentPost;
+        employee.PermanentPoliceStation = employee.PresentPoliceStation;
+        employee.BanglaPermanentPoliceStation = employee.BanglaPresentPoliceStation;
+        employee.PermanentDistrict = employee.PresentDistrict;
+        employee.BanglaPermanentDistrict = employee.BanglaPresentDistrict;
+        ShowToast("Present address copied to Permanent address.");
+    }
+
+    private async Task OpenCharDrawerAsync()
+    {
+        if (string.IsNullOrWhiteSpace(employee.EmployeeCode)) return;
+        showCharDrawer = true;
+        charCertificates = await EmployeeRepository.GetCharacterCertificatesAsync(employee.EmployeeCode, employee.DateOfJoining);
+    }
+
+    private void CloseCharDrawer() => showCharDrawer = false;
+
+    private void SelectRating(CharacterCertificateItem item, string rating)
+    {
+        if (!canEdit)
+        {
+            OpenPasswordDialog();
+            return;
+        }
+        item.Rating = rating;
+        StateHasChanged();
+    }
+
+    private static bool IsRatingMatch(string? current, string target)
+    {
+        if (string.IsNullOrWhiteSpace(current)) return false;
+        current = current.Trim();
+        if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase)) return true;
+
+        if (target.Equals("Satisfactory", StringComparison.OrdinalIgnoreCase) || target == "সন্তোষজনক")
+        {
+            return current.Equals("Satisfactory", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("Good", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("S", StringComparison.OrdinalIgnoreCase)
+                || current == "1"
+                || (current.Contains("সন্তোষ") && !current.Contains("মধ্যম") && !current.Contains("অসন্তোষ"))
+                || current.StartsWith("?") || current.Contains("???");
+        }
+
+        if (target.Equals("Moderate", StringComparison.OrdinalIgnoreCase) || target.Contains("মধ্যম"))
+        {
+            return current.Equals("Moderate", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("Medium", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("Average", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("M", StringComparison.OrdinalIgnoreCase)
+                || current == "2"
+                || current.Contains("মধ্যম");
+        }
+
+        if (target.Equals("Unsatisfactory", StringComparison.OrdinalIgnoreCase) || target == "অসন্তোষজনক")
+        {
+            return current.Equals("Unsatisfactory", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("Poor", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("Bad", StringComparison.OrdinalIgnoreCase)
+                || current.Equals("U", StringComparison.OrdinalIgnoreCase)
+                || current == "3"
+                || current.Contains("অসন্তোষ");
+        }
+
+        return false;
+    }
+
+    private static string GetStatusClass(string? status) => (status?.Trim().ToLowerInvariant()) switch
+    {
+        "active" => "status-active",
+        "close" => "status-close",
+        "release" => "status-release",
+        "maternity" => "status-maternity",
+        "inactive" => "status-inactive",
+        _ => "status-active"
+    };
+
+    private void ClearCharRating(CharacterCertificateItem item)
+    {
+        if (!canEdit)
+        {
+            OpenPasswordDialog();
+            return;
+        }
+        item.Rating = string.Empty;
+        item.Remarks = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task SaveCharCertificatesAsync()
+    {
+        if (!canEdit)
+        {
+            OpenPasswordDialog();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(employee.EmployeeCode) || employee.EmployeeId <= 0) return;
+        isSavingChar = true;
+        try
+        {
+            var userId = int.TryParse(HttpContextAccessor.HttpContext?.Session.GetString("UserId"), out var value) ? value : 0;
+            var count = await EmployeeRepository.SaveCharacterCertificatesAsync(employee.EmployeeCode, employee.EmployeeId, charCertificates, userId);
+            ShowToast($"চারিত্রিক মূল্যায়ন সংরক্ষিত ও আপডেট হয়েছে ({count} টি রেকর্ড)।");
+            CloseCharDrawer();
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"সংরক্ষণে সমস্যা: {ex.Message}");
+        }
+        finally
+        {
+            isSavingChar = false;
+        }
+    }
+
+    private void OpenPasswordDialog()
+    {
+        verificationPassword = string.Empty;
+        passwordError = null;
+        showPasswordDialog = true;
+    }
+
+    private void ClosePasswordDialog()
+    {
+        showPasswordDialog = false;
+        verificationPassword = string.Empty;
+        passwordError = null;
+    }
+
+    private async Task HandlePasswordKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await VerifyPassword();
+        }
+    }
+
+    private async Task VerifyPassword()
+    {
+        var userId = int.TryParse(HttpContextAccessor.HttpContext?.Session.GetString("UserId"), out var value) ? value : 0;
+        if (userId == 0)
+        {
+            Navigation.NavigateTo("/", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(verificationPassword) || !await PayrollRepository.VerifyCurrentUserPasswordAsync(userId, verificationPassword))
+        {
+            passwordError = "Incorrect password. Please try again.";
+            return;
+        }
+
+        isUnlocked = true;
+        ClosePasswordDialog();
+        ShowToast("Password verified. You can now modify and update this employee record.");
+    }
+
+    private void LockEditing()
+    {
+        isUnlocked = false;
+        ShowToast("Employee record is now locked.");
+    }
+
+    private async Task ShowUnlockHint(MouseEventArgs args)
+    {
+        if (canEdit) return;
+        unlockHintX = args.OffsetX;
+        unlockHintY = args.OffsetY;
+        showUnlockHint = true;
+        showLockShake = false;
+        await InvokeAsync(StateHasChanged);
+        showLockShake = true;
+        await Task.Delay(300);
+        showLockShake = false;
+        await Task.Delay(1700);
+        showUnlockHint = false;
+    }
+
+    private async Task NewEmployee()
+    {
+        employee = new EmployeeModel();
+        searchEmployeeCode = string.Empty;
+        saved = false;
+        isUnlocked = false;
+        pageError = null;
+        toastMessage = null;
+        leaveSummary = new EmployeeLeaveSummary();
+        await LoadData();
+        ShowToast("Ready for new employee registration.");
+    }
+
+    private async Task PhotoSelected(InputFileChangeEventArgs args) => await StartCropAsync(args.File, "photo");
+    private async Task SignatureSelected(InputFileChangeEventArgs args) => await StartCropAsync(args.File, "signature");
+
+    private async Task StartCropAsync(IBrowserFile file, string target)
+    {
+        var bytes = await ReadImageAsync(file);
+        if (bytes is null) return;
+        cropSource = ImageSource(bytes);
+        cropTarget = target;
+        cropZoom = 1;
+        showCropDialog = true;
+    }
+
+    private void TriggerCropExisting(string target)
+    {
+        var bytes = target == "signature" ? employee.Signature : employee.Photo;
+        if (bytes is null || bytes.Length == 0) return;
+        cropSource = ImageSource(bytes);
+        cropTarget = target;
+        cropZoom = 1;
+        showCropDialog = true;
+    }
+
+    private void RemoveImage(string target)
+    {
+        if (target == "signature") employee.Signature = null;
+        else employee.Photo = null;
+        ShowToast(target == "signature" ? "Signature removed." : "Photo removed.");
+    }
+
+    private void CancelCrop()
+    {
+        showCropDialog = false;
+        cropSource = null;
+    }
+
+    private void ZoomIn() => cropZoom = Math.Min(3, cropZoom + .1);
+    private void ZoomOut() => cropZoom = Math.Max(1, cropZoom - .1);
+
+    private async Task ApplyCrop()
+    {
+        if (cropSource is null) return;
+        try
+        {
+            var result = await JS.InvokeAsync<string>("employeeImageProcessing.cropFromFrame", cropSource, cropTarget);
+            var comma = result.IndexOf(',');
+            var bytes = Convert.FromBase64String(comma >= 0 ? result[(comma + 1)..] : result);
+            if (cropTarget == "photo") employee.Photo = bytes;
+            else employee.Signature = bytes;
+            CancelCrop();
+            ShowToast(cropTarget == "photo" ? "Photo cropped and updated." : "Signature cropped and updated.");
+        }
+        catch (Exception ex)
+        {
+            assetError = $"Cropping failed: {ex.Message}";
+            CancelCrop();
+        }
+    }
+
+    private async Task<byte[]?> ReadImageAsync(IBrowserFile file)
+    {
+        assetError = null;
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            assetError = "Please select a valid image file (JPG, PNG, WebP).";
+            return null;
+        }
+
+        try
+        {
+            await using var input = file.OpenReadStream(2_000_000);
+            using var output = new MemoryStream();
+            await input.CopyToAsync(output);
+            return output.ToArray();
+        }
+        catch
+        {
+            assetError = "Image file must be smaller than 2 MB.";
+            return null;
+        }
+    }
+
+    private static string ImageSource(byte[] bytes) => $"data:{ImageMimeType(bytes)};base64,{Convert.ToBase64String(bytes)}";
+    private static string ImageMimeType(byte[] bytes) =>
+        bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 ? "image/png" :
+        bytes.Length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[8] == 0x57 && bytes[9] == 0x45 ? "image/webp" : "image/jpeg";
+
+    private async Task Save()
+    {
+        if (isEdit && !isUnlocked)
+        {
+            OpenPasswordDialog();
+            return;
+        }
+
+        pageError = null;
+        if (!employee.EmployeeStatus.Equals("Active", StringComparison.OrdinalIgnoreCase) && employee.CloseDate is null)
+        {
+            pageError = "Close / Release Date is required for an inactive employee.";
+            return;
+        }
+
+        if (employee.EmployeeStatus.Equals("Active", StringComparison.OrdinalIgnoreCase))
+        {
+            employee.CloseDate = null;
+            employee.StatusReason = string.Empty;
+        }
+
+        try
+        {
+            var userId = int.TryParse(HttpContextAccessor.HttpContext?.Session.GetString("UserId"), out var value) ? value : 0;
+            if (userId == 0)
+            {
+                Navigation.NavigateTo("/", true);
+                return;
+            }
+
+            var id = await EmployeeRepository.SaveEmployeeAsync(employee, userId);
+            employee = await EmployeeRepository.GetEmployeeAsync(id) ?? employee;
+            saved = true;
+            isUnlocked = false;
+            await LoadData();
+            await LoadLeaveSummaryAsync();
+            ShowToast("Employee record saved successfully.");
+        }
+        catch (Exception ex)
+        {
+            pageError = ex is InvalidOperationException ? ex.Message : "Employee record could not be saved. Please check database logs.";
+        }
+    }
+
+    private void ShowToast(string message)
+    {
+        toastMessage = message;
+        toastLeaving = false;
+        _ = ClearToastAfterDelayAsync(++toastVersion);
+    }
+
+    private async Task ClearToastAfterDelayAsync(int version)
+    {
+        await Task.Delay(4500);
+        if (version != toastVersion) return;
+        toastLeaving = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(400);
+        if (version != toastVersion) return;
+        toastMessage = null;
+        toastLeaving = false;
+        await InvokeAsync(StateHasChanged);
+    }
+}

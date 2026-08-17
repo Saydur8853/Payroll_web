@@ -1,0 +1,20 @@
+@if (Items is not null)
+{
+    @foreach (var item in Items.Where(item => item.Id != 184))
+    {
+        if (item.Children.Count > 0)
+        {
+            <details class="menu-group" open><summary><span>@item.Name</span><span class="chevron">⌄</span></summary><MenuItems Items="item.Children" /></details>
+        }
+        else if (item.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase) || item.Name.Equals("Employee Information", StringComparison.OrdinalIgnoreCase))
+        {
+            <NavLink class="menu-item" href="/EmployeeInformation"><span>•</span>@item.Name</NavLink>
+        }
+        else
+        {
+            <span class="menu-item unavailable"><span>•</span>@item.Name</span>
+        }
+    }
+}
+
+@code { [Parameter, EditorRequired] public IEnumerable<NavigationItem>? Items { get; set; } }

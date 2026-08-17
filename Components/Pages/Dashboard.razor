@@ -1,0 +1,30 @@
+@page "/Dashboard"
+@inject PayrollRepository PayrollRepository
+
+@if (loadError is not null) { <div class="database-error">@loadError</div> }
+else
+{
+    <section class="dashboard-heading"><div><p class="eyebrow">OVERVIEW</p><h1>Payroll dashboard</h1><p>Current workforce information for @month.</p></div><time>@DateTime.Today.ToString("dddd, dd MMMM yyyy")</time></section>
+    <section class="metric-grid">
+        @foreach (var card in cards) { <article class="metric-card @card.Class"><p>@card.Name</p><strong>@card.Value.ToString("N0")</strong></article> }
+    </section>
+}
+
+@code {
+    private DashboardData data = new();
+    private string? loadError;
+    private string month = DateTime.Today.ToString("MMMM yyyy");
+    private IEnumerable<(string Name, int Value, string Class)> cards => [
+        ("Total Employees", data.TotalEmployees, "blue"), ("Active Employees", data.ActiveEmployees, "green"), ("Inactive Employees", data.InactiveEmployees, "orange"),
+        ($"New Joiners · {month}", data.NewJoiners, "teal"), ("Closed", data.ClosedEmployees, "slate"), ("Release", data.Releases, "red"),
+        ("Workers", data.Workers, "cyan"), ("Staff", data.Staff, "purple"), ("Officers", data.Officers, "green"), ("Male", data.Male, "indigo"),
+        ("Female", data.Female, "pink"), ("Cash Pay", data.CashPay, "orange"), ("Bank Pay", data.BankPay, "blue"), ("Mobile Pay", data.MobilePay, "green"),
+        ("Tax Holders", data.TaxHolders, "gold"), ("Quarter Holders", data.QuarterHolders, "teal"), ($"Increments · {month}", data.Increments, "cyan"),
+        ($"On Leave · {month}", data.OnLeave, "purple"), ("On Maternity", data.Maternity, "pink")];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { data = await PayrollRepository.GetDashboardAsync(); }
+        catch { loadError = "Dashboard data could not be loaded. Check the database connection and schema."; }
+    }
+}

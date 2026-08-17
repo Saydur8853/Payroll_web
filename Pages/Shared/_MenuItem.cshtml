@@ -1,0 +1,23 @@
+@model TG.Payroll.Web.Models.NavigationItem
+
+@if (Model.Children.Count == 0)
+{
+    @if (Model.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase))
+    {
+        <a class="menu-item" asp-page="/EmployeeInformation"><span>•</span>@Model.Name</a>
+    }
+    else
+    {
+        <span class="menu-item unavailable"><span>•</span>@Model.Name</span>
+    }
+}
+else
+{
+    <details class="menu-group" open>
+        <summary><span>@Model.Name</span><span class="chevron">⌄</span></summary>
+        @foreach (var child in Model.Children)
+        {
+            @await Html.PartialAsync("_MenuItem", child)
+        }
+    </details>
+}

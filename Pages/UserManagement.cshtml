@@ -1,0 +1,181 @@
+@page
+@model UserManagementModel
+@{
+    ViewData["Title"] = "User Management";
+    var selectedModuleIds = Model.SelectedModuleIds.ToHashSet();
+    var newUserModuleIds = Model.NewUserModuleIds.ToHashSet();
+}
+
+<main class="dashboard-page">
+    <header class="topbar">
+        <a class="brand-link" href="/Dashboard">
+            <div class="brand-badge">
+                <span class="brand-mark small">TG</span>
+            </div>
+            <div class="brand-text-group">
+                <span class="topbar-title">TG Payroll</span>
+                <span class="topbar-tag">Enterprise HRIS</span>
+            </div>
+        </a>
+
+        <div class="topbar-right">
+            <div class="topbar-company-badge" title="Active Organization">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9zM7 13h2v2H7v-2zm4 0h2v2h-2v-2z" clip-rule="evenodd"/></svg>
+                <span>@Model.CompanyName</span>
+            </div>
+
+            <div class="topbar-user-pill">
+                <div class="topbar-avatar">
+                    <span>@(string.IsNullOrWhiteSpace(Model.CurrentUserName) ? "U" : Model.CurrentUserName[0].ToString().ToUpperInvariant())</span>
+                    <span class="topbar-avatar-status"></span>
+                </div>
+                <div class="topbar-user-details">
+                    <strong class="topbar-user-name">@Model.CurrentUserName</strong>
+                    <small class="topbar-user-role">Active Account</small>
+                </div>
+            </div>
+
+            <a class="topbar-btn topbar-btn-nav" href="/Dashboard" title="Go to Dashboard">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                <span>Dashboard</span>
+            </a>
+
+            <form method="post" action="/logout" style="margin:0;">
+                <button type="submit" class="topbar-btn topbar-btn-signout" title="Sign out of your session">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l2.47-2.47a.75.75 0 10-1.06-1.06l-3.75 3.75a.75.75 0 000 1.06l3.75 3.75a.75.75 0 101.06-1.06l-2.47-2.47h9.546A.75.75 0 0019 10z" clip-rule="evenodd"/></svg>
+                    <span>Sign out</span>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <section class="management-heading">
+        <div><p class="eyebrow">SETTINGS</p><h1>User Management</h1><p>Manage user access to payroll modules.</p></div>
+    </section>
+
+    @if (Model.Saved)
+    {
+        <div class="success-message">Module permissions saved successfully.</div>
+    }
+    @if (Model.Created)
+    {
+        <div class="success-message">User created successfully. The new user can now sign in.</div>
+    }
+    @if (Model.CredentialsUpdated)
+    {
+        <div class="success-message">Your username and password were updated successfully.</div>
+    }
+    @if (Model.CreateError is not null)
+    {
+        <div class="database-error management-message">@Model.CreateError</div>
+    }
+    @if (Model.CredentialError is not null)
+    {
+        <div class="database-error management-message">@Model.CredentialError</div>
+    }
+
+    <section class="create-user-panel account-panel">
+        <div class="create-user-title"><div><h2>My login</h2><p>Update your own login username or password. Your internal numeric user ID will remain unchanged.</p></div></div>
+        <form method="post" asp-page-handler="UpdateCredentials">
+            <div class="user-fields account-fields">
+                <label><span>Login username</span><input asp-for="AccountUsername" maxlength="80" autocomplete="username" required /></label>
+                <label><span>Current password</span><span class="password-field"><input asp-for="CurrentPassword" type="password" maxlength="50" autocomplete="current-password" required /><button type="button" class="password-toggle" data-password-toggle aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg></button></span></label>
+                <label><span>New password (optional)</span><span class="password-field"><input asp-for="NewAccountPassword" data-new-password type="password" maxlength="50" autocomplete="new-password" /><button type="button" class="password-toggle" data-password-toggle aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg></button></span></label>
+                <label><span>Confirm new password</span><span class="password-field"><input asp-for="ConfirmAccountPassword" data-confirm-password type="password" maxlength="50" autocomplete="new-password" /><button type="button" class="password-toggle" data-password-toggle aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg></button></span><small class="password-match-message" data-password-message aria-live="polite"></small></label>
+            </div>
+            <div class="module-actions"><button type="submit">Update my login</button></div>
+        </form>
+    </section>
+
+    @if (Model.CurrentUserIsAdmin)
+    {
+        <section class="create-user-panel user-create-panel">
+            <div class="create-user-title"><div><h2>Add user</h2><p>Create a login and assign its role and module privileges.</p></div></div>
+            <form method="post" asp-page-handler="Create" id="create-user-form">
+                <div class="user-fields">
+                    <label><span>Username</span><input asp-for="NewUsername" maxlength="80" autocomplete="off" required /></label>
+                    <label><span>Password</span><span class="password-field"><input asp-for="NewPassword" type="password" maxlength="50" autocomplete="new-password" required /><button type="button" class="password-toggle" data-password-toggle aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg></button></span></label>
+                    <label><span>Role</span><select asp-for="NewRole" id="new-user-role"><option value="User">Standard user</option><option value="Admin">Administrator</option></select></label>
+                </div>
+                <div class="create-module-heading"><h3>Module privileges</h3><span>Admin role automatically receives every module.</span></div>
+                <div class="module-grid compact">
+                    @foreach (var module in Model.Modules)
+                    {
+                        <label class="module-option">
+                            <input type="checkbox" class="new-user-module" name="NewUserModuleIds" value="@module.Id" checked="@newUserModuleIds.Contains(module.Id)" />
+                            <span><strong>@module.Name</strong><small>Module ID: @module.Id</small></span>
+                        </label>
+                    }
+                </div>
+                <div class="module-actions"><button type="submit">Create user</button></div>
+            </form>
+        </section>
+    }
+
+    <div class="management-shell">
+        <aside class="user-list-panel">
+            <h2>Users</h2>
+            @foreach (var user in Model.Users)
+            {
+                <a class="user-row @(user.UserId == Model.SelectedUserId ? "selected" : "")" asp-page="/UserManagement" asp-route-userId="@user.UserId">
+                    <span class="user-avatar">@((user.UserName ?? "U")[0].ToString().ToUpper())</span>
+                    <span><strong>@user.UserName</strong><small>@(user.Admin == 1 ? "Administrator" : "Standard user")</small></span>
+                </a>
+            }
+        </aside>
+
+        <section class="module-panel">
+            @if (Model.SelectedUser is null)
+            {
+                <p>No user found.</p>
+            }
+            else
+            {
+                <div class="module-panel-title">
+                    <div><h2>Module access</h2><p>@Model.SelectedUser.UserName · @(Model.SelectedUserIsAdmin ? "Administrator" : "Standard user")</p></div>
+                    @if (Model.SelectedUserIsAdmin)
+                    {
+                        <span class="admin-badge">All modules enabled</span>
+                    }
+                    else if (!Model.CurrentUserIsAdmin)
+                    {
+                        <span class="readonly-badge">Read only</span>
+                    }
+                </div>
+                <form method="post" asp-page-handler="SavePrivileges">
+                    <input type="hidden" asp-for="SelectedUserId" />
+                    <div class="module-grid">
+                        @foreach (var module in Model.Modules)
+                        {
+                            <label class="module-option">
+                                <input type="checkbox" name="SelectedModuleIds" value="@module.Id" checked="@selectedModuleIds.Contains(module.Id)" disabled="@(Model.SelectedUserIsAdmin || !Model.CurrentUserIsAdmin)" />
+                                <span><strong>@module.Name</strong><small>Module ID: @module.Id</small></span>
+                            </label>
+                        }
+                    </div>
+                    @if (Model.CurrentUserIsAdmin)
+                    {
+                        <div class="module-actions"><button type="submit">Save module access</button></div>
+                    }
+                </form>
+            }
+        </section>
+    </div>
+</main>
+
+<script>
+    (() => {
+        const role = document.getElementById('new-user-role');
+        const modules = [...document.querySelectorAll('.new-user-module')];
+        if (!role) return;
+        const syncRole = () => {
+            const admin = role.value === 'Admin';
+            modules.forEach(module => {
+                if (admin) module.checked = true;
+                module.disabled = admin;
+            });
+        };
+        role.addEventListener('change', syncRole);
+        syncRole();
+    })();
+</script>

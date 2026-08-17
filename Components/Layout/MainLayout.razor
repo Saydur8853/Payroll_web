@@ -1,0 +1,85 @@
+@inherits LayoutComponentBase
+@inject IHttpContextAccessor HttpContextAccessor
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+
+@code {
+    private List<NavigationItem> menu = [];
+    private string userName = "User";
+    private string companyName = "Payroll";
+    private bool loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdValue = session?.GetString("UserId");
+        if (!int.TryParse(userIdValue, out var userId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        userName = session?.GetString("UserName") ?? userName;
+        companyName = session?.GetString("CompanyName") ?? companyName;
+        menu = await PayrollRepository.GetMenuAsync(userId);
+        loaded = true;
+    }
+
+    private void SignOut()
+    {
+        HttpContextAccessor.HttpContext?.Session.Clear();
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}
+
+@if (loaded)
+{
+    <main class="dashboard-page">
+        <header class="topbar">
+            <NavLink class="brand-link" href="/Dashboard">
+                <div class="brand-badge">
+                    <span class="brand-mark small">TG</span>
+                </div>
+                <div class="brand-text-group">
+                    <span class="topbar-title">TG Payroll</span>
+                    <span class="topbar-tag">Enterprise HRIS</span>
+                </div>
+            </NavLink>
+
+            <div class="topbar-right">
+                <div class="topbar-company-badge" title="Active Organization">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9zM7 13h2v2H7v-2zm4 0h2v2h-2v-2z" clip-rule="evenodd"/></svg>
+                    <span>@companyName</span>
+                </div>
+
+                <div class="topbar-user-pill">
+                    <div class="topbar-avatar">
+                        <span>@(string.IsNullOrWhiteSpace(userName) ? "U" : userName[0].ToString().ToUpperInvariant())</span>
+                        <span class="topbar-avatar-status"></span>
+                    </div>
+                    <div class="topbar-user-details">
+                        <strong class="topbar-user-name">@userName</strong>
+                        <small class="topbar-user-role">Active Account</small>
+                    </div>
+                </div>
+
+                <NavLink class="topbar-btn topbar-btn-nav" href="/UserManagement" title="Manage Users & Permissions">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+                    <span>User Management</span>
+                </NavLink>
+
+                <button type="button" class="topbar-btn topbar-btn-signout" @onclick="SignOut" title="Sign out of your session">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l2.47-2.47a.75.75 0 10-1.06-1.06l-3.75 3.75a.75.75 0 000 1.06l3.75 3.75a.75.75 0 101.06-1.06l-2.47-2.47h9.546A.75.75 0 0019 10z" clip-rule="evenodd"/></svg>
+                    <span>Sign out</span>
+                </button>
+            </div>
+        </header>
+        <div class="application-shell">
+            <aside class="sidebar">
+                <NavLink class="dashboard-link" href="/Dashboard" Match="NavLinkMatch.All"><span>⌂</span> Dashboard</NavLink>
+                <nav aria-label="Payroll modules"><MenuItems Items="menu" /></nav>
+            </aside>
+            <div class="dashboard-content">@Body</div>
+        </div>
+    </main>
+}

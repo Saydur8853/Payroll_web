@@ -1,0 +1,33 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+
+<main class="login-page">
+    <section class="login-panel">
+        <div class="brand-mark">TG</div>
+        <p class="eyebrow">TALHA GROUP</p>
+        <h1>Payroll Portal</h1>
+        <p class="login-copy">Sign in to access your payroll dashboard.</p>
+
+        <form method="post" class="login-form">
+            <div asp-validation-summary="ModelOnly" class="validation-message"></div>
+            @if (Model.ErrorMessage is not null)
+            {
+                <div class="validation-message">@Model.ErrorMessage</div>
+            }
+            <label asp-for="Username">Username</label>
+            <input asp-for="Username" autocomplete="username" autofocus />
+            <label asp-for="Password">Password</label>
+            <div class="password-field">
+                <input asp-for="Password" type="password" autocomplete="current-password" />
+                <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" title="Show password">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                </button>
+            </div>
+            <button type="submit">Sign in</button>
+        </form>
+        <p class="login-footer">NG NTTML payroll data</p>
+    </section>
+</main>

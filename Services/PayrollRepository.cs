@@ -180,14 +180,233 @@ public sealed class PayrollRepository
         var modules = new List<NavigationItem>();
         while (await reader.ReadAsync(cancellationToken))
         {
+            var parentIdVal = reader.IsDBNull(2) ? null : (int?)Convert.ToInt32(reader.GetValue(2));
+            if (parentIdVal == 0) parentIdVal = null;
             modules.Add(new NavigationItem
             {
                 Id = Convert.ToInt32(reader.GetValue(0)),
                 Name = Convert.ToString(reader.GetValue(1)) ?? string.Empty,
-                ParentId = reader.IsDBNull(2) ? null : Convert.ToInt32(reader.GetValue(2))
+                ParentId = parentIdVal
             });
         }
         return modules;
+    }
+
+    public async Task<List<NavigationItem>> GetAllMenuTreeAsync(CancellationToken cancellationToken = default)
+    {
+        var flat = await GetAllMenuControlsAsync(cancellationToken);
+        var lookup = flat.ToDictionary(item => item.Id, item => new NavigationItem
+        {
+            Id = item.Id,
+            Name = item.Name,
+            ParentId = item.ParentId
+        });
+        var roots = new List<NavigationItem>();
+        foreach (var item in flat)
+        {
+            var node = lookup[item.Id];
+            if (item.ParentId is > 0 && lookup.TryGetValue(item.ParentId.Value, out var parent))
+            {
+                parent.Children.Add(node);
+            }
+            else
+            {
+                roots.Add(node);
+            }
+        }
+        return roots;
+    }
+
+    public async Task<List<ControlItem>> GetControlsDetailedAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT c.CONTROL_ID, c.CONTROL_NAME, c.CALLING_ID, NVL(p.CONTROL_NAME, 'Root / Top Level') AS PARENT_NAME, NVL(c.CONTROL_TYPE, 'MENU') AS CONTROL_TYPE, NVL(c.PRIORITY, 0) AS PRIORITY
+            FROM CONTROLS c
+            LEFT JOIN CONTROLS p ON c.CALLING_ID = p.CONTROL_ID
+            ORDER BY NVL(c.PRIORITY, 0), c.CONTROL_ID
+            """;
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new OracleCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var list = new List<ControlItem>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(new ControlItem
+            {
+                ControlId = Convert.ToInt32(reader.GetValue(0)),
+                ControlName = Convert.ToString(reader.GetValue(1)) ?? string.Empty,
+                CallingId = reader.IsDBNull(2) || Convert.ToInt32(reader.GetValue(2)) == 0 ? null : Convert.ToInt32(reader.GetValue(2)),
+                ParentName = Convert.ToString(reader.GetValue(3)) ?? "Root / Top Level",
+                ControlType = Convert.ToString(reader.GetValue(4)) ?? "MENU",
+                Priority = Convert.ToInt32(reader.GetValue(5))
+            });
+        }
+        return list;
+    }
+
+    public async Task<List<string>> GetDistinctControlTypesAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = "SELECT DISTINCT NVL(TRIM(CONTROL_TYPE), 'MENU') FROM CONTROLS WHERE CONTROL_TYPE IS NOT NULL ORDER BY 1";
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new OracleCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var list = new List<string>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var val = Convert.ToString(reader.GetValue(0));
+            if (!string.IsNullOrWhiteSpace(val) && !list.Contains(val))
+            {
+                list.Add(val);
+            }
+        }
+        if (list.Count == 0) list.AddRange(["MENU", "FORM", "REPORT", "BUTTON"]);
+        return list;
+    }
+
+    public async Task<int> CreateControlAsync(string controlName, int? callingId, string controlType, int priority, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string nextIdSql = "SELECT NVL(MAX(CONTROL_ID), 0) + 1 FROM CONTROLS";
+        int newId;
+        await using (var idCommand = new OracleCommand(nextIdSql, connection))
+        {
+            var scalar = await idCommand.ExecuteScalarAsync(cancellationToken);
+            newId = Convert.ToInt32(scalar);
+        }
+
+        const string insertSql = """
+            INSERT INTO CONTROLS (CONTROL_ID, CONTROL_NAME, CALLING_ID, CONTROL_TYPE, PRIORITY)
+            VALUES (:controlId, :controlName, :callingId, :controlType, :priority)
+            """;
+        await using var insertCommand = new OracleCommand(insertSql, connection) { BindByName = true };
+        insertCommand.Parameters.Add(new OracleParameter("controlId", newId));
+        insertCommand.Parameters.Add(new OracleParameter("controlName", controlName.Trim()));
+        insertCommand.Parameters.Add(new OracleParameter("callingId", callingId.HasValue && callingId.Value > 0 ? callingId.Value : 0));
+        insertCommand.Parameters.Add(new OracleParameter("controlType", string.IsNullOrWhiteSpace(controlType) ? "MENU" : controlType.Trim().ToUpperInvariant()));
+        insertCommand.Parameters.Add(new OracleParameter("priority", priority));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        return newId;
+    }
+
+    public async Task UpdateControlAsync(int controlId, string controlName, int? callingId, string controlType, int priority, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string updateSql = """
+            UPDATE CONTROLS
+            SET CONTROL_NAME = :controlName,
+                CALLING_ID = :callingId,
+                CONTROL_TYPE = :controlType,
+                PRIORITY = :priority
+            WHERE CONTROL_ID = :controlId
+            """;
+        await using var updateCommand = new OracleCommand(updateSql, connection) { BindByName = true };
+        updateCommand.Parameters.Add(new OracleParameter("controlName", controlName.Trim()));
+        updateCommand.Parameters.Add(new OracleParameter("callingId", callingId.HasValue && callingId.Value > 0 ? callingId.Value : 0));
+        updateCommand.Parameters.Add(new OracleParameter("controlType", string.IsNullOrWhiteSpace(controlType) ? "MENU" : controlType.Trim().ToUpperInvariant()));
+        updateCommand.Parameters.Add(new OracleParameter("priority", priority));
+        updateCommand.Parameters.Add(new OracleParameter("controlId", controlId));
+        await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task DeleteControlAsync(int controlId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string deleteSql = "DELETE FROM CONTROLS WHERE CONTROL_ID = :controlId";
+        await using var deleteCommand = new OracleCommand(deleteSql, connection) { BindByName = true };
+        deleteCommand.Parameters.Add(new OracleParameter("controlId", controlId));
+        await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<List<CompanyItem>> GetCompaniesAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = "SELECT COMPANY_ID, NVL(COMPANY_NAME, 'Unnamed Company'), NVL(ADDRESS, ''), NVL(REMARKS, ''), NVL(COMPANY_LOGO_PATH, '') FROM COMPANY ORDER BY COMPANY_ID";
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new OracleCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var list = new List<CompanyItem>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(new CompanyItem
+            {
+                CompanyId = Convert.ToInt32(reader.GetValue(0)),
+                CompanyName = Convert.ToString(reader.GetValue(1)) ?? string.Empty,
+                Address = Convert.ToString(reader.GetValue(2)) ?? string.Empty,
+                Remarks = Convert.ToString(reader.GetValue(3)) ?? string.Empty,
+                CompanyLogoPath = Convert.ToString(reader.GetValue(4)) ?? string.Empty
+            });
+        }
+        return list;
+    }
+
+    public async Task<int> CreateCompanyAsync(string companyName, string address, string remarks, string logoPath, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string nextIdSql = "SELECT NVL(MAX(COMPANY_ID), 0) + 1 FROM COMPANY";
+        int newId;
+        await using (var idCommand = new OracleCommand(nextIdSql, connection))
+        {
+            var scalar = await idCommand.ExecuteScalarAsync(cancellationToken);
+            newId = Convert.ToInt32(scalar);
+        }
+
+        const string insertSql = """
+            INSERT INTO COMPANY (COMPANY_ID, COMPANY_NAME, ADDRESS, REMARKS, COMPANY_LOGO_PATH)
+            VALUES (:companyId, :companyName, :address, :remarks, :logoPath)
+            """;
+        await using var insertCommand = new OracleCommand(insertSql, connection) { BindByName = true };
+        insertCommand.Parameters.Add(new OracleParameter("companyId", newId));
+        insertCommand.Parameters.Add(new OracleParameter("companyName", companyName.Trim()));
+        insertCommand.Parameters.Add(new OracleParameter("address", string.IsNullOrWhiteSpace(address) ? DBNull.Value : address.Trim()));
+        insertCommand.Parameters.Add(new OracleParameter("remarks", string.IsNullOrWhiteSpace(remarks) ? DBNull.Value : remarks.Trim()));
+        insertCommand.Parameters.Add(new OracleParameter("logoPath", string.IsNullOrWhiteSpace(logoPath) ? DBNull.Value : logoPath.Trim()));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        return newId;
+    }
+
+    public async Task UpdateCompanyAsync(int companyId, string companyName, string address, string remarks, string logoPath, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string updateSql = """
+            UPDATE COMPANY
+            SET COMPANY_NAME = :companyName,
+                ADDRESS = :address,
+                REMARKS = :remarks,
+                COMPANY_LOGO_PATH = :logoPath
+            WHERE COMPANY_ID = :companyId
+            """;
+        await using var updateCommand = new OracleCommand(updateSql, connection) { BindByName = true };
+        updateCommand.Parameters.Add(new OracleParameter("companyName", companyName.Trim()));
+        updateCommand.Parameters.Add(new OracleParameter("address", string.IsNullOrWhiteSpace(address) ? DBNull.Value : address.Trim()));
+        updateCommand.Parameters.Add(new OracleParameter("remarks", string.IsNullOrWhiteSpace(remarks) ? DBNull.Value : remarks.Trim()));
+        updateCommand.Parameters.Add(new OracleParameter("logoPath", string.IsNullOrWhiteSpace(logoPath) ? DBNull.Value : logoPath.Trim()));
+        updateCommand.Parameters.Add(new OracleParameter("companyId", companyId));
+        await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task DeleteCompanyAsync(int companyId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string deleteSql = "DELETE FROM COMPANY WHERE COMPANY_ID = :companyId";
+        await using var deleteCommand = new OracleCommand(deleteSql, connection) { BindByName = true };
+        deleteCommand.Parameters.Add(new OracleParameter("companyId", companyId));
+        await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task UpdateUserPrivilegesAsync(int userId, IEnumerable<int> selectedModuleIds, CancellationToken cancellationToken = default)

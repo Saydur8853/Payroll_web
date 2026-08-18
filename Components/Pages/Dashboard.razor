@@ -1,5 +1,7 @@
 @page "/Dashboard"
 @inject PayrollRepository PayrollRepository
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
 
 @if (loadError is not null) { <div class="database-error">@loadError</div> }
 else
@@ -24,7 +26,51 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdValue = session?.GetString("UserId");
+        if (!int.TryParse(userIdValue, out var userId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        var isAdmin = session?.GetString("IsAdmin") == "1";
+        if (!isAdmin)
+        {
+            var menu = await PayrollRepository.GetMenuAsync(userId);
+            var hasDashboard = HasModuleRecursive(menu, item => item.Id == 184 || item.Name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase));
+            if (!hasDashboard)
+            {
+                // Redirect user with no Dashboard privilege to their allowed module
+                if (HasModuleRecursive(menu, item => item.Name.Contains("Employee", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Navigation.NavigateTo("/EmployeeInformation", forceLoad: true);
+                    return;
+                }
+                else if (HasModuleRecursive(menu, item => item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Navigation.NavigateTo("/UserManagement", forceLoad: true);
+                    return;
+                }
+                else
+                {
+                    loadError = "Access Restricted: You do not have permission to view the Dashboard overview. Please select an authorized module from the navigation.";
+                    return;
+                }
+            }
+        }
+
         try { data = await PayrollRepository.GetDashboardAsync(); }
         catch { loadError = "Dashboard data could not be loaded. Check the database connection and schema."; }
+    }
+
+    private static bool HasModuleRecursive(IEnumerable<NavigationItem> items, Func<NavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item)) return true;
+            if (item.Children.Count > 0 && HasModuleRecursive(item.Children, predicate)) return true;
+        }
+        return false;
     }
 }

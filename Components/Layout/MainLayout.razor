@@ -7,6 +7,9 @@
     private List<NavigationItem> menu = [];
     private string userName = "User";
     private string companyName = "Payroll";
+    private bool isAdmin;
+    private bool hasDashboard;
+    private bool hasUserManagement;
     private bool loaded;
     private string searchQuery = string.Empty;
 
@@ -22,8 +25,23 @@
 
         userName = session?.GetString("UserName") ?? userName;
         companyName = session?.GetString("CompanyName") ?? companyName;
+        isAdmin = session?.GetString("IsAdmin") == "1";
         menu = await PayrollRepository.GetMenuAsync(userId);
+
+        hasDashboard = isAdmin || HasModuleRecursive(menu, item => item.Id == 184 || item.Name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase));
+        hasUserManagement = isAdmin || HasModuleRecursive(menu, item => item.Name.Contains("USER MANAGEMENT", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("User Privilege", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("Control Entry", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase));
+
         loaded = true;
+    }
+
+    private static bool HasModuleRecursive(IEnumerable<NavigationItem> items, Func<NavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item)) return true;
+            if (item.Children.Count > 0 && HasModuleRecursive(item.Children, predicate)) return true;
+        }
+        return false;
     }
 
     private void SignOut()
@@ -53,16 +71,16 @@
                     <span>@companyName</span>
                 </div>
 
-                <div class="topbar-user-pill">
+                <NavLink class="topbar-user-pill topbar-user-link" href="/Account" Match="NavLinkMatch.Prefix" title="My Profile & Login Settings">
                     <div class="topbar-avatar">
                         <span>@(string.IsNullOrWhiteSpace(userName) ? "U" : userName[0].ToString().ToUpperInvariant())</span>
                         <span class="topbar-avatar-status"></span>
                     </div>
                     <div class="topbar-user-details">
                         <strong class="topbar-user-name">@userName</strong>
-                        <small class="topbar-user-role">Active Account</small>
+                        <small class="topbar-user-role">@(isAdmin ? "Administrator" : "Active Account")</small>
                     </div>
-                </div>
+                </NavLink>
 
                 <button type="button" class="topbar-btn topbar-btn-signout" @onclick="SignOut" title="Sign out of your session">
                     <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l2.47-2.47a.75.75 0 10-1.06-1.06l-3.75 3.75a.75.75 0 000 1.06l3.75 3.75a.75.75 0 101.06-1.06l-2.47-2.47h9.546A.75.75 0 0019 10z" clip-rule="evenodd"/></svg>
@@ -91,26 +109,35 @@
                     }
                 </div>
 
-                <div class="sidebar-quick-nav">
-                    <NavLink class="dashboard-link" href="/Dashboard" Match="NavLinkMatch.All">
-                        <span class="menu-icon-wrap dashboard-icon-wrap">
-                            <svg viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
-                            </svg>
-                        </span>
-                        <span class="menu-text">Dashboard</span>
-                        <span class="menu-pill-indicator"></span>
-                    </NavLink>
-                    <NavLink class="dashboard-link" href="/UserManagement" Match="NavLinkMatch.Prefix">
-                        <span class="menu-icon-wrap user-nav-icon-wrap">
-                            <svg viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
-                            </svg>
-                        </span>
-                        <span class="menu-text">User Management</span>
-                        <span class="menu-pill-indicator"></span>
-                    </NavLink>
-                </div>
+                @if (hasDashboard || hasUserManagement)
+                {
+                    <div class="sidebar-quick-nav">
+                        @if (hasDashboard)
+                        {
+                            <NavLink class="dashboard-link" href="/Dashboard" Match="NavLinkMatch.All">
+                                <span class="menu-icon-wrap dashboard-icon-wrap">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                                    </svg>
+                                </span>
+                                <span class="menu-text">Dashboard</span>
+                                <span class="menu-pill-indicator"></span>
+                            </NavLink>
+                        }
+                        @if (hasUserManagement)
+                        {
+                            <NavLink class="dashboard-link" href="/UserManagement" Match="NavLinkMatch.Prefix">
+                                <span class="menu-icon-wrap user-nav-icon-wrap">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+                                    </svg>
+                                </span>
+                                <span class="menu-text">User Management</span>
+                                <span class="menu-pill-indicator"></span>
+                            </NavLink>
+                        }
+                    </div>
+                }
 
                 <div class="sidebar-divider">
                     <span>Payroll Modules</span>

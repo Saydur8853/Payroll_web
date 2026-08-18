@@ -35,6 +35,20 @@ public class IndexModel(PayrollRepository payrollRepository, ILogger<IndexModel>
             HttpContext.Session.SetString("CompanyName", user.CompanyName);
             HttpContext.Session.SetString("CompanyId", user.CompanyId.ToString());
             HttpContext.Session.SetString("IsAdmin", user.IsAdmin ? "1" : "0");
+
+            if (!user.IsAdmin)
+            {
+                var menu = await payrollRepository.GetMenuAsync(user.Id, cancellationToken);
+                var hasDashboard = HasModule(menu, item => item.Id == 184 || item.Name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase));
+                if (!hasDashboard)
+                {
+                    if (HasModule(menu, item => item.Name.Contains("Employee", StringComparison.OrdinalIgnoreCase)))
+                        return Redirect("/EmployeeInformation");
+                    if (HasModule(menu, item => item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase)))
+                        return Redirect("/UserManagement");
+                }
+            }
+
             return Redirect("/Dashboard");
         }
         catch (Exception exception)
@@ -43,5 +57,15 @@ public class IndexModel(PayrollRepository payrollRepository, ILogger<IndexModel>
             ErrorMessage = "Unable to connect to the payroll database. Check appsettings.json.";
             return Page();
         }
+    }
+
+    private static bool HasModule(IEnumerable<TG.Payroll.Web.Models.NavigationItem> items, Func<TG.Payroll.Web.Models.NavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item)) return true;
+            if (item.Children.Count > 0 && HasModule(item.Children, predicate)) return true;
+        }
+        return false;
     }
 }

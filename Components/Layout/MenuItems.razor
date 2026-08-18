@@ -28,9 +28,33 @@
                 <span class="menu-status-badge available">Live</span>
             </NavLink>
         }
+        else if (IsControlEntryItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=controls" Match="NavLinkMatch.Prefix" title="@item.Name">
+                <span class="menu-bullet-dot"></span>
+                <span class="menu-text">@item.Name</span>
+                <span class="menu-status-badge available">Live</span>
+            </NavLink>
+        }
+        else if (IsSetCompanyItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=company" Match="NavLinkMatch.Prefix" title="@item.Name">
+                <span class="menu-bullet-dot"></span>
+                <span class="menu-text">@item.Name</span>
+                <span class="menu-status-badge available">Live</span>
+            </NavLink>
+        }
+        else if (IsTrackingTaskItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=tracking" Match="NavLinkMatch.Prefix" title="@item.Name">
+                <span class="menu-bullet-dot"></span>
+                <span class="menu-text">@item.Name</span>
+                <span class="menu-status-badge available">Live</span>
+            </NavLink>
+        }
         else if (IsUserManagementItem(item.Name))
         {
-            <NavLink class="menu-item menu-link-activeable" href="/UserManagement" Match="NavLinkMatch.Prefix" title="@item.Name">
+            <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=users" Match="NavLinkMatch.Prefix" title="@item.Name">
                 <span class="menu-bullet-dot"></span>
                 <span class="menu-text">@item.Name</span>
                 <span class="menu-status-badge available">Live</span>
@@ -57,7 +81,9 @@
         get
         {
             if (Items is null) return [];
-            var list = Items.Where(item => item.Id != 184);
+            var list = Items.Where(item => 
+                item.Id != 184 && 
+                !(Level == 0 && item.Name.Contains("USER MANAGEMENT", StringComparison.OrdinalIgnoreCase)));
             if (string.IsNullOrWhiteSpace(SearchQuery)) return list;
 
             var q = SearchQuery.Trim();
@@ -84,12 +110,39 @@
             || name.Equals("Employee Information", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsControlEntryItem(string name)
+    {
+        return name.Equals("Control Entry", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Control_Entry", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Controls Entry", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Add Features", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Feature Entry", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSetCompanyItem(string name)
+    {
+        return name.Equals("Set Company", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Company", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Company Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Company Information", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTrackingTaskItem(string name)
+    {
+        return name.Equals("Tracking Task", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Task Tracking", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Tracking_Task", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("User Tracking", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsUserManagementItem(string name)
     {
         return name.Equals("User Management", StringComparison.OrdinalIgnoreCase) 
             || name.Equals("User Control", StringComparison.OrdinalIgnoreCase)
             || name.Equals("User Privilege", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("User Privileges", StringComparison.OrdinalIgnoreCase);
+            || name.Equals("User Privileges", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("User Privilage", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("User Privilages", StringComparison.OrdinalIgnoreCase);
     }
 
     private static RenderFragment GetIcon(string name) => builder =>

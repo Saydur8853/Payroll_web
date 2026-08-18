@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "VOHE3j42RkPr0ii0G3608WVC5wGOMPc16guE1CAt6rk=",
+  "Hash": "CblMA4q8RovP2M1HgLRuscWPhh/YCOP5EYxLuCfQAUU=",
   "Source": "TG.Payroll.Web",
   "BasePath": "_content/TG.Payroll.Web",
   "Mode": "Default",
@@ -73,8 +73,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "",
       "AssetTraitValue": "",
-      "Fingerprint": "87wkilsi4r",
-      "Integrity": "/Bk+luNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo=",
+      "Fingerprint": "oyj9ml11fy",
+      "Integrity": "sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\css\\site.css"
@@ -1321,51 +1321,6 @@
   ],
   "Endpoints": [
     {
-      "Route": "css/site.87wkilsi4r.css",
-      "AssetFile": "C:\\Users\\TG-ict\\Desktop\\TG-payroll\\wwwroot\\css\\site.css",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "65443"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "text/css"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"/Bk+luNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Tue, 18 Aug 2026 06:32:42 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "87wkilsi4r"
-        },
-        {
-          "Name": "label",
-          "Value": "css/site.css"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-/Bk+luNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo="
-        }
-      ]
-    },
-    {
       "Route": "css/site.css",
       "AssetFile": "C:\\Users\\TG-ict\\Desktop\\TG-payroll\\wwwroot\\css\\site.css",
       "Selectors": [],
@@ -1376,7 +1331,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "65443"
+          "Value": "77381"
         },
         {
           "Name": "Content-Type",
@@ -1384,11 +1339,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"/Bk+luNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo=\""
+          "Value": "\"sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Tue, 18 Aug 2026 06:32:42 GMT"
+          "Value": "Tue, 18 Aug 2026 11:27:54 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -1398,7 +1353,52 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-/Bk+luNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo="
+          "Value": "sha256-sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o="
+        }
+      ]
+    },
+    {
+      "Route": "css/site.oyj9ml11fy.css",
+      "AssetFile": "C:\\Users\\TG-ict\\Desktop\\TG-payroll\\wwwroot\\css\\site.css",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "77381"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/css"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 18 Aug 2026 11:27:54 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "oyj9ml11fy"
+        },
+        {
+          "Name": "label",
+          "Value": "css/site.css"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o="
         }
       ]
     },

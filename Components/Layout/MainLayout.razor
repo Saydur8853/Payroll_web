@@ -8,6 +8,7 @@
     private string userName = "User";
     private string companyName = "Payroll";
     private bool loaded;
+    private string searchQuery = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -63,11 +64,6 @@
                     </div>
                 </div>
 
-                <NavLink class="topbar-btn topbar-btn-nav" href="/UserManagement" title="Manage Users & Permissions">
-                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
-                    <span>User Management</span>
-                </NavLink>
-
                 <button type="button" class="topbar-btn topbar-btn-signout" @onclick="SignOut" title="Sign out of your session">
                     <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l2.47-2.47a.75.75 0 10-1.06-1.06l-3.75 3.75a.75.75 0 000 1.06l3.75 3.75a.75.75 0 101.06-1.06l-2.47-2.47h9.546A.75.75 0 0019 10z" clip-rule="evenodd"/></svg>
                     <span>Sign out</span>
@@ -76,8 +72,64 @@
         </header>
         <div class="application-shell">
             <aside class="sidebar">
-                <NavLink class="dashboard-link" href="/Dashboard" Match="NavLinkMatch.All"><span>⌂</span> Dashboard</NavLink>
-                <nav aria-label="Payroll modules"><MenuItems Items="menu" /></nav>
+                <div class="sidebar-header">
+                    <span class="sidebar-section-title">Navigation</span>
+                </div>
+
+                <div class="sidebar-search-box">
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="sidebar-search-icon">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                    </svg>
+                    <input type="text"
+                           class="sidebar-search-input"
+                           placeholder="Search modules..."
+                           @bind="searchQuery"
+                           @bind:event="oninput" />
+                    @if (!string.IsNullOrWhiteSpace(searchQuery))
+                    {
+                        <button type="button" class="sidebar-search-clear" @onclick="() => searchQuery = string.Empty" title="Clear search">✕</button>
+                    }
+                </div>
+
+                <div class="sidebar-quick-nav">
+                    <NavLink class="dashboard-link" href="/Dashboard" Match="NavLinkMatch.All">
+                        <span class="menu-icon-wrap dashboard-icon-wrap">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                            </svg>
+                        </span>
+                        <span class="menu-text">Dashboard</span>
+                        <span class="menu-pill-indicator"></span>
+                    </NavLink>
+                    <NavLink class="dashboard-link" href="/UserManagement" Match="NavLinkMatch.Prefix">
+                        <span class="menu-icon-wrap user-nav-icon-wrap">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+                            </svg>
+                        </span>
+                        <span class="menu-text">User Management</span>
+                        <span class="menu-pill-indicator"></span>
+                    </NavLink>
+                </div>
+
+                <div class="sidebar-divider">
+                    <span>Payroll Modules</span>
+                </div>
+
+                <nav class="sidebar-nav" aria-label="Payroll modules">
+                    <MenuItems Items="menu" SearchQuery="@searchQuery" Level="0" />
+                </nav>
+
+                <div class="sidebar-footer-card">
+                    <div class="sidebar-footer-header">
+                        <div class="sidebar-footer-dot"></div>
+                        <span class="sidebar-footer-label">System Online</span>
+                    </div>
+                    <div class="sidebar-footer-meta">
+                        <strong title="@companyName">@companyName</strong>
+                        <small>TG Payroll Enterprise</small>
+                    </div>
+                </div>
             </aside>
             <div class="dashboard-content">@Body</div>
         </div>

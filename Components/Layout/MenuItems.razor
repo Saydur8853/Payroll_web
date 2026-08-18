@@ -1,20 +1,131 @@
 @if (Items is not null)
 {
-    @foreach (var item in Items.Where(item => item.Id != 184))
+    @foreach (var item in FilteredItems)
     {
         if (item.Children.Count > 0)
         {
-            <details class="menu-group" open><summary><span>@item.Name</span><span class="chevron">⌄</span></summary><MenuItems Items="item.Children" /></details>
+            <details class="menu-group" open="@IsOpen(item)">
+                <summary class="menu-group-summary">
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                    <span class="menu-text" title="@item.Name">@item.Name</span>
+                    <span class="menu-count-badge">@item.Children.Count</span>
+                    <svg class="menu-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </summary>
+                <div class="menu-children-container">
+                    <MenuItems Items="item.Children" SearchQuery="@SearchQuery" Level="@(Level + 1)" />
+                </div>
+            </details>
         }
-        else if (item.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase) || item.Name.Equals("Employee Information", StringComparison.OrdinalIgnoreCase))
+        else if (IsEmployeeItem(item.Name))
         {
-            <NavLink class="menu-item" href="/EmployeeInformation"><span>•</span>@item.Name</NavLink>
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeInformation" Match="NavLinkMatch.Prefix" title="@item.Name">
+                <span class="menu-bullet-dot"></span>
+                <span class="menu-text">@item.Name</span>
+                <span class="menu-status-badge available">Live</span>
+            </NavLink>
+        }
+        else if (IsUserManagementItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/UserManagement" Match="NavLinkMatch.Prefix" title="@item.Name">
+                <span class="menu-bullet-dot"></span>
+                <span class="menu-text">@item.Name</span>
+                <span class="menu-status-badge available">Live</span>
+            </NavLink>
         }
         else
         {
-            <span class="menu-item unavailable"><span>•</span>@item.Name</span>
+            <div class="menu-item unavailable" title="@item.Name (Module under development)">
+                <span class="menu-bullet-dot mute"></span>
+                <span class="menu-text">@item.Name</span>
+                <span class="menu-status-badge locked">Soon</span>
+            </div>
         }
     }
 }
 
-@code { [Parameter, EditorRequired] public IEnumerable<NavigationItem>? Items { get; set; } }
+@code {
+    [Parameter, EditorRequired] public IEnumerable<NavigationItem>? Items { get; set; }
+    [Parameter] public string? SearchQuery { get; set; }
+    [Parameter] public int Level { get; set; } = 0;
+
+    private IEnumerable<NavigationItem> FilteredItems
+    {
+        get
+        {
+            if (Items is null) return [];
+            var list = Items.Where(item => item.Id != 184);
+            if (string.IsNullOrWhiteSpace(SearchQuery)) return list;
+
+            var q = SearchQuery.Trim();
+            return list.Where(item => MatchesSearch(item, q));
+        }
+    }
+
+    private static bool MatchesSearch(NavigationItem item, string query)
+    {
+        if (item.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return item.Children.Any(c => MatchesSearch(c, query));
+    }
+
+    private bool IsOpen(NavigationItem item)
+    {
+        if (!string.IsNullOrWhiteSpace(SearchQuery)) return true;
+        return true;
+    }
+
+    private static bool IsEmployeeItem(string name)
+    {
+        return name.Equals("Employee", StringComparison.OrdinalIgnoreCase) 
+            || name.Equals("Employee Information", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsUserManagementItem(string name)
+    {
+        return name.Equals("User Management", StringComparison.OrdinalIgnoreCase) 
+            || name.Equals("User Control", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("User Privilege", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("User Privileges", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static RenderFragment GetIcon(string name) => builder =>
+    {
+        var n = name.ToLowerInvariant();
+        if (n.Contains("employee") || n.Contains("personnel") || n.Contains("workforce") || n.Contains("staff") || n.Contains("worker"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z""/></svg>");
+        }
+        else if (n.Contains("attend") || n.Contains("leave") || n.Contains("time") || n.Contains("shift") || n.Contains("punch") || n.Contains("duty"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path fill-rule=""evenodd"" d=""M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"" clip-rule=""evenodd""/></svg>");
+        }
+        else if (n.Contains("salary") || n.Contains("pay") || n.Contains("wage") || n.Contains("bonus") || n.Contains("advance") || n.Contains("allowance") || n.Contains("fund"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z""/><path fill-rule=""evenodd"" d=""M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"" clip-rule=""evenodd""/></svg>");
+        }
+        else if (n.Contains("increment") || n.Contains("promotion") || n.Contains("transfer") || n.Contains("upgrade"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path fill-rule=""evenodd"" d=""M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z"" clip-rule=""evenodd""/></svg>");
+        }
+        else if (n.Contains("report") || n.Contains("statement") || n.Contains("summary") || n.Contains("audit") || n.Contains("list") || n.Contains("slip"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z""/><path d=""M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z""/></svg>");
+        }
+        else if (n.Contains("setup") || n.Contains("master") || n.Contains("config") || n.Contains("company") || n.Contains("setting") || n.Contains("system"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path fill-rule=""evenodd"" d=""M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"" clip-rule=""evenodd""/></svg>");
+        }
+        else if (n.Contains("user") || n.Contains("security") || n.Contains("privilege") || n.Contains("role") || n.Contains("access") || n.Contains("auth"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path fill-rule=""evenodd"" d=""M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z"" clip-rule=""evenodd""/></svg>");
+        }
+        else
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z""/></svg>");
+        }
+    };
+}

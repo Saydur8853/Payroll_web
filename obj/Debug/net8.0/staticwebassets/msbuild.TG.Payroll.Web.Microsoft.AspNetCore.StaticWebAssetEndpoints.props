@@ -1,16 +1,16 @@
 ﻿<Project>
   <ItemGroup>
+    <StaticWebAssetEndpoint Include="_content/TG.Payroll.Web/css/site.87wkilsi4r.css">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\site.css'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"87wkilsi4r"},{"Name":"integrity","Value":"sha256-/Bk\u002BluNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo="},{"Name":"label","Value":"_content/TG.Payroll.Web/css/site.css"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"65443"},{"Name":"Content-Type","Value":"text/css"},{"Name":"ETag","Value":"\u0022/Bk\u002BluNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo=\u0022"},{"Name":"Last-Modified","Value":"Tue, 18 Aug 2026 06:32:42 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/TG.Payroll.Web/css/site.css">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\site.css'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-wLCOZf1K8f/EBfXPMHuKx9rYhTCPMeqFAky4\u002BHTRP6c="}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"55074"},{"Name":"Content-Type","Value":"text/css"},{"Name":"ETag","Value":"\u0022wLCOZf1K8f/EBfXPMHuKx9rYhTCPMeqFAky4\u002BHTRP6c=\u0022"},{"Name":"Last-Modified","Value":"Tue, 18 Aug 2026 05:14:21 GMT"}]]]></ResponseHeaders>
-    </StaticWebAssetEndpoint>
-    <StaticWebAssetEndpoint Include="_content/TG.Payroll.Web/css/site.ctuxpbn4g4.css">
-      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\site.css'))</AssetFile>
-      <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"ctuxpbn4g4"},{"Name":"integrity","Value":"sha256-wLCOZf1K8f/EBfXPMHuKx9rYhTCPMeqFAky4\u002BHTRP6c="},{"Name":"label","Value":"_content/TG.Payroll.Web/css/site.css"}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"55074"},{"Name":"Content-Type","Value":"text/css"},{"Name":"ETag","Value":"\u0022wLCOZf1K8f/EBfXPMHuKx9rYhTCPMeqFAky4\u002BHTRP6c=\u0022"},{"Name":"Last-Modified","Value":"Tue, 18 Aug 2026 05:14:21 GMT"}]]]></ResponseHeaders>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-/Bk\u002BluNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"65443"},{"Name":"Content-Type","Value":"text/css"},{"Name":"ETag","Value":"\u0022/Bk\u002BluNaiqesPzYpC5r5n5cCbX5ROmcxLtaU/W8uJXo=\u0022"},{"Name":"Last-Modified","Value":"Tue, 18 Aug 2026 06:32:42 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/TG.Payroll.Web/favicon.61n19gt1b8.ico">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\favicon.ico'))</AssetFile>

@@ -2,22 +2,49 @@
 
 @if (Model.Children.Count == 0)
 {
-    @if (Model.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase))
+    @if (Model.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase) || Model.Name.Equals("Employee Information", StringComparison.OrdinalIgnoreCase))
     {
-        <a class="menu-item" asp-page="/EmployeeInformation"><span>•</span>@Model.Name</a>
+        <a class="menu-item menu-link-activeable" href="/EmployeeInformation" title="@Model.Name">
+            <span class="menu-bullet-dot"></span>
+            <span class="menu-text">@Model.Name</span>
+            <span class="menu-status-badge available">Live</span>
+        </a>
+    }
+    else if (Model.Name.Equals("User Management", StringComparison.OrdinalIgnoreCase) || Model.Name.Equals("User Control", StringComparison.OrdinalIgnoreCase) || Model.Name.Equals("User Privilege", StringComparison.OrdinalIgnoreCase))
+    {
+        <a class="menu-item menu-link-activeable" href="/UserManagement" title="@Model.Name">
+            <span class="menu-bullet-dot"></span>
+            <span class="menu-text">@Model.Name</span>
+            <span class="menu-status-badge available">Live</span>
+        </a>
     }
     else
     {
-        <span class="menu-item unavailable"><span>•</span>@Model.Name</span>
+        <span class="menu-item unavailable" title="@Model.Name (Module under development)">
+            <span class="menu-bullet-dot mute"></span>
+            <span class="menu-text">@Model.Name</span>
+            <span class="menu-status-badge locked">Soon</span>
+        </span>
     }
 }
 else
 {
     <details class="menu-group" open>
-        <summary><span>@Model.Name</span><span class="chevron">⌄</span></summary>
-        @foreach (var child in Model.Children)
-        {
-            @await Html.PartialAsync("_MenuItem", child)
-        }
+        <summary class="menu-group-summary">
+            <span class="menu-icon-wrap">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
+            </span>
+            <span class="menu-text" title="@Model.Name">@Model.Name</span>
+            <span class="menu-count-badge">@Model.Children.Count</span>
+            <svg class="menu-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+        </summary>
+        <div class="menu-children-container">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("_MenuItem", child)
+            }
+        </div>
     </details>
 }

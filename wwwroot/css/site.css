@@ -587,6 +587,17 @@ input.password-mismatch { border-color: #dc3d43 !important; box-shadow: 0 0 0 2p
   color: #94a3b8;
   font-weight: 400;
 }
+.emp-code-warning {
+  margin-top: 5px;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+.emp-code-warning.is-leaving {
+  opacity: 0;
+}
 
 .emp-lookup-hint {
   color: #64748b;
@@ -937,6 +948,15 @@ input.password-mismatch { border-color: #dc3d43 !important; box-shadow: 0 0 0 2p
 .emp-input-number {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+.emp-gross-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.emp-gross-input::-webkit-inner-spin-button,
+.emp-gross-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 .emp-select-wrap {
@@ -2397,4 +2417,3 @@ input.password-mismatch { border-color: #dc3d43 !important; box-shadow: 0 0 0 2p
 .emp-btn-char-block.is-disabled svg {
   color: #94a3b8;
 }
-

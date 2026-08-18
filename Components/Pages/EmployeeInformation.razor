@@ -85,8 +85,11 @@
                 <div class="emp-search-box">
                     <input id="emp-code-input"
                            data-employee-code
-                           @bind="searchEmployeeCode"
-                           @bind:event="oninput"
+                           type="text"
+                           inputmode="numeric"
+                           pattern="[0-9]*"
+                           value="@searchEmployeeCode"
+                           @oninput="UpdateSearchEmployeeCode"
                            @onkeyup="HandleEmployeeCodeKey"
                            placeholder="Enter code (e.g. 10001) & press Enter"
                            autocomplete="off"
@@ -96,6 +99,10 @@
                         <span>Find</span>
                     </button>
                 </div>
+                @if (employeeCodeTaken)
+                {
+                    <div class="emp-code-warning @(employeeCodeWarningLeaving ? "is-leaving" : "")">This code is already taken.</div>
+                }
             </div>
 
             <div class="emp-lookup-actions">
@@ -361,7 +368,9 @@
                                         </div>
                                         <div class="emp-field">
                                             <label class="emp-label">Gross Salary (৳)</label>
-                                            <InputNumber @bind-Value="employee.Gross" class="emp-input emp-input-number" placeholder="0.00" />
+                                            <input type="number" class="emp-input emp-input-number emp-gross-input" placeholder="0.00" min="0" step="any"
+                                                   value="@employee.Gross.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                   @oninput="UpdateGrossSalary" @onwheel:preventDefault="true" />
                                         </div>
                                         <div class="emp-field">
                                             <label class="emp-label">Basic Salary (৳) <span class="emp-label-calc-tag">Auto</span></label>
@@ -1038,6 +1047,10 @@
     private bool toastLeaving;
     private bool showLockShake;
     private bool showUnlockHint;
+    private bool employeeCodeTaken;
+    private bool employeeCodeWarningLeaving;
+    private string? autoSuggestedEmployeeCode;
+    private int employeeCodeWarningVersion;
     private double cropZoom = 1;
     private double unlockHintX;
     private double unlockHintY;
@@ -1077,6 +1090,9 @@
 
     private async Task LookupCodeManual()
     {
+        autoSuggestedEmployeeCode = null;
+        employeeCodeWarningVersion++;
+        employeeCodeWarningLeaving = false;
         var code = (string.IsNullOrWhiteSpace(searchEmployeeCode) ? employee.EmployeeCode : searchEmployeeCode)?.Trim();
         if (string.IsNullOrWhiteSpace(code))
         {
@@ -1095,6 +1111,8 @@
             {
                 employee = found;
                 searchEmployeeCode = found.EmployeeCode;
+                employeeCodeTaken = true;
+                _ = FadeEmployeeCodeWarningAfterDelayAsync(++employeeCodeWarningVersion);
                 isUnlocked = false;
                 await LoadLeaveSummaryAsync();
                 ShowToast($"Employee found: {found.EmployeeName} ({found.EmployeeCode}). Unlock to edit.");
@@ -1103,6 +1121,7 @@
             {
                 employee = new EmployeeModel { EmployeeCode = code };
                 searchEmployeeCode = code;
+                employeeCodeTaken = false;
                 isUnlocked = false;
                 leaveSummary = new EmployeeLeaveSummary();
                 await LoadData();
@@ -1114,6 +1133,22 @@
         {
             pageError = $"Search error: {ex.Message}";
         }
+    }
+
+    private async Task UpdateSearchEmployeeCode(ChangeEventArgs args)
+    {
+        employeeCodeWarningVersion++;
+        employeeCodeWarningLeaving = false;
+        var enteredValue = args.Value?.ToString() ?? string.Empty;
+        searchEmployeeCode = new string(enteredValue.Where(char.IsAsciiDigit).ToArray());
+        if (isEdit)
+        {
+            employeeCodeTaken = false;
+            return;
+        }
+
+        employee.EmployeeCode = searchEmployeeCode;
+        employeeCodeTaken = await EmployeeRepository.EmployeeCodeExistsAsync(searchEmployeeCode);
     }
 
     private async Task HandleEmployeeCodeKey(KeyboardEventArgs args)
@@ -1218,6 +1253,22 @@
             return Math.Round((gross - allowances) / divisor, 0);
         }
         return Math.Round(gross * 0.5m, 0);
+    }
+
+    private void UpdateGrossSalary(ChangeEventArgs args)
+    {
+        var rawValue = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            employee.Gross = 0;
+            return;
+        }
+
+        if (decimal.TryParse(rawValue, System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture, out var gross))
+        {
+            employee.Gross = gross;
+        }
     }
 
     private void CopyPresentToPermanent()
@@ -1407,7 +1458,12 @@
     private async Task NewEmployee()
     {
         employee = new EmployeeModel();
-        searchEmployeeCode = string.Empty;
+        searchEmployeeCode = await EmployeeRepository.GetNextEmployeeCodeAsync();
+        employee.EmployeeCode = searchEmployeeCode;
+        autoSuggestedEmployeeCode = searchEmployeeCode;
+        employeeCodeTaken = false;
+        employeeCodeWarningVersion++;
+        employeeCodeWarningLeaving = false;
         saved = false;
         isUnlocked = false;
         pageError = null;
@@ -1534,8 +1590,11 @@
                 return;
             }
 
-            var id = await EmployeeRepository.SaveEmployeeAsync(employee, userId);
+            var assignNextEmployeeCode = !isEdit && employee.EmployeeCode == autoSuggestedEmployeeCode;
+            var id = await EmployeeRepository.SaveEmployeeAsync(employee, userId, assignNextEmployeeCode);
             employee = await EmployeeRepository.GetEmployeeAsync(id) ?? employee;
+            searchEmployeeCode = employee.EmployeeCode;
+            autoSuggestedEmployeeCode = null;
             saved = true;
             isUnlocked = false;
             await LoadData();
@@ -1553,6 +1612,21 @@
         toastMessage = message;
         toastLeaving = false;
         _ = ClearToastAfterDelayAsync(++toastVersion);
+    }
+
+    private async Task FadeEmployeeCodeWarningAfterDelayAsync(int version)
+    {
+        await Task.Delay(4500);
+        if (version != employeeCodeWarningVersion) return;
+
+        employeeCodeWarningLeaving = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(500);
+        if (version != employeeCodeWarningVersion) return;
+
+        employeeCodeTaken = false;
+        employeeCodeWarningLeaving = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ClearToastAfterDelayAsync(int version)

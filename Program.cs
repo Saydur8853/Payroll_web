@@ -21,6 +21,7 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddScoped<PayrollRepository>();
 builder.Services.AddScoped<EmployeeRepository>();
+builder.Services.AddScoped<EmployeeSchemaMigration>();
 
 var app = builder.Build();
 
@@ -56,6 +57,15 @@ if (args.Contains("--check-employees", StringComparer.OrdinalIgnoreCase))
         .Select(user => $"{user.UserId}:{user.UserName}={(user.Admin == 1 || (user.PrivilegeArray ?? string.Empty).Split(',').Contains("125") ? "yes" : "no")}");
     if (employees.Count > 0) await repository.GetEmployeeAsync(employees[0].EmployeeId);
     Console.WriteLine($"Employee queries succeeded. Employees returned: {employees.Count}; departments: {lookups.Departments.Count}; menu: {string.Join(", ", employeeMenus)}; access: {string.Join(", ", employeeAccess)}.");
+    return;
+}
+
+if (args.Contains("--apply-employee-concurrency", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var migration = scope.ServiceProvider.GetRequiredService<EmployeeSchemaMigration>();
+    await migration.ApplyEmployeeConcurrencyAsync();
+    Console.WriteLine("Employee code concurrency safeguards applied.");
     return;
 }
 

@@ -479,7 +479,7 @@ public sealed class EmployeeRepository
 
     public async Task<EmployeeInformation?> GetEmployeeByCodeAsync(string employeeCode, CancellationToken cancellationToken = default)
     {
-        const string sql = "SELECT EMP_ID FROM EMP_OFFICIAL WHERE UPPER(EMP_CODE) = :employeeCode";
+        const string sql = "SELECT EMP_ID FROM EMP_OFFICIAL WHERE UPPER(TRIM(EMP_CODE)) = :employeeCode";
         await using var connection = new OracleConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new OracleCommand(sql, connection) { BindByName = true };
@@ -488,7 +488,29 @@ public sealed class EmployeeRepository
         return result is null || result is DBNull ? null : await GetEmployeeAsync(Convert.ToInt32(result), cancellationToken);
     }
 
-    public async Task<int> SaveEmployeeAsync(EmployeeInformation employee, int userId, CancellationToken cancellationToken = default)
+    public async Task<string> GetNextEmployeeCodeAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = "SELECT NVL(MAX(TO_NUMBER(TRIM(EMP_CODE))), 0) + 1 FROM EMP_OFFICIAL WHERE REGEXP_LIKE(TRIM(EMP_CODE), '^[0-9]+$')";
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new OracleCommand(sql, connection);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToDecimal(result).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public async Task<bool> EmployeeCodeExistsAsync(string employeeCode, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(employeeCode)) return false;
+
+        const string sql = "SELECT COUNT(*) FROM EMP_OFFICIAL WHERE UPPER(TRIM(EMP_CODE)) = :employeeCode";
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new OracleCommand(sql, connection) { BindByName = true };
+        command.Parameters.Add(new OracleParameter("employeeCode", employeeCode.Trim()));
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    }
+
+    public async Task<int> SaveEmployeeAsync(EmployeeInformation employee, int userId, bool assignNextEmployeeCode = false, CancellationToken cancellationToken = default)
     {
         await using var connection = new OracleConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -499,9 +521,16 @@ public sealed class EmployeeRepository
         {
             if (employee.EmployeeId == 0)
             {
-                await EnsureEmployeeCodeIsUniqueAsync(connection, oracleTransaction, employee.EmployeeCode, null, cancellationToken);
                 employee.EmployeeId = await GetNextEmployeeIdAsync(connection, oracleTransaction, cancellationToken);
-                await InsertOfficialAsync(connection, oracleTransaction, employee, userId, cancellationToken);
+                if (assignNextEmployeeCode)
+                {
+                    await InsertEmployeeWithNextAvailableCodeAsync(connection, oracleTransaction, employee, userId, cancellationToken);
+                }
+                else
+                {
+                    await EnsureEmployeeCodeIsUniqueAsync(connection, oracleTransaction, employee.EmployeeCode, null, cancellationToken);
+                    await InsertOfficialAsync(connection, oracleTransaction, employee, userId, cancellationToken);
+                }
                 await InsertPersonalAsync(connection, oracleTransaction, employee, cancellationToken);
                 await LogActionAsync(connection, oracleTransaction, employee.EmployeeCode, $"INSERT: Name={employee.EmployeeName}, Status={employee.EmployeeStatus}, Gross={employee.Gross}", userId, cancellationToken);
             }
@@ -735,7 +764,7 @@ public sealed class EmployeeRepository
 
     private static async Task EnsureEmployeeCodeIsUniqueAsync(OracleConnection connection, OracleTransaction transaction, string code, int? employeeId, CancellationToken token)
     {
-        var sql = "SELECT COUNT(*) FROM EMP_OFFICIAL WHERE UPPER(EMP_CODE)=UPPER(:code)" + (employeeId.HasValue ? " AND EMP_ID<>:id" : string.Empty);
+        var sql = "SELECT COUNT(*) FROM EMP_OFFICIAL WHERE UPPER(TRIM(EMP_CODE))=UPPER(TRIM(:code))" + (employeeId.HasValue ? " AND EMP_ID<>:id" : string.Empty);
         await using var command = new OracleCommand(sql, connection) { BindByName = true, Transaction = transaction };
         Add(command, "code", code.Trim());
         if (employeeId.HasValue) Add(command, "id", employeeId.Value);
@@ -745,8 +774,28 @@ public sealed class EmployeeRepository
 
     private static async Task<int> GetNextEmployeeIdAsync(OracleConnection connection, OracleTransaction transaction, CancellationToken token)
     {
-        await using var command = new OracleCommand("SELECT NVL(MAX(EMP_ID),0)+1 FROM EMP_OFFICIAL", connection) { Transaction = transaction };
+        await using var command = new OracleCommand("SELECT EMP_OFFICIAL_ID_SEQ.NEXTVAL FROM DUAL", connection) { Transaction = transaction };
         return Convert.ToInt32(await command.ExecuteScalarAsync(token));
+    }
+
+    private static async Task InsertEmployeeWithNextAvailableCodeAsync(OracleConnection connection, OracleTransaction transaction, EmployeeInformation employee, int userId, CancellationToken token)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            await using var codeCommand = new OracleCommand("SELECT EMP_CODE_SEQ.NEXTVAL FROM DUAL", connection) { Transaction = transaction };
+            employee.EmployeeCode = Convert.ToDecimal(await codeCommand.ExecuteScalarAsync(token)).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+            try
+            {
+                await InsertOfficialAsync(connection, transaction, employee, userId, token);
+                return;
+            }
+            catch (OracleException ex) when (ex.Number == 1)
+            {
+                // A manually selected code used this sequence value first; safely try the next value.
+            }
+        }
+
+        throw new InvalidOperationException("Unable to allocate a unique employee code. Please try saving again.");
     }
 
     private static async Task<List<LookupOption>> ReadLookupAsync(OracleConnection connection, string sql, CancellationToken token)
@@ -836,4 +885,3 @@ public sealed class EmployeeRepository
         }
     }
 }
-

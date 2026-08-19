@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "CblMA4q8RovP2M1HgLRuscWPhh/YCOP5EYxLuCfQAUU=",
+  "Hash": "BUiPg5fIInlfL++0wc+/E5DgSptYZNtR3NmAJJwK3bo=",
   "Source": "TG.Payroll.Web",
   "BasePath": "_content/TG.Payroll.Web",
   "Mode": "Default",
@@ -73,8 +73,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "",
       "AssetTraitValue": "",
-      "Fingerprint": "oyj9ml11fy",
-      "Integrity": "sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o=",
+      "Fingerprint": "13qevs5935",
+      "Integrity": "jXqBITqvLJYlaDiv8qNbqb7k26bFLesoyBojFbYNhds=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\css\\site.css"
@@ -1321,6 +1321,51 @@
   ],
   "Endpoints": [
     {
+      "Route": "css/site.13qevs5935.css",
+      "AssetFile": "C:\\Users\\TG-ict\\Desktop\\TG-payroll\\wwwroot\\css\\site.css",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "77381"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/css"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jXqBITqvLJYlaDiv8qNbqb7k26bFLesoyBojFbYNhds=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 19 Aug 2026 06:57:11 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "13qevs5935"
+        },
+        {
+          "Name": "label",
+          "Value": "css/site.css"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jXqBITqvLJYlaDiv8qNbqb7k26bFLesoyBojFbYNhds="
+        }
+      ]
+    },
+    {
       "Route": "css/site.css",
       "AssetFile": "C:\\Users\\TG-ict\\Desktop\\TG-payroll\\wwwroot\\css\\site.css",
       "Selectors": [],
@@ -1339,11 +1384,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o=\""
+          "Value": "\"jXqBITqvLJYlaDiv8qNbqb7k26bFLesoyBojFbYNhds=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Tue, 18 Aug 2026 11:27:54 GMT"
+          "Value": "Wed, 19 Aug 2026 06:57:11 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -1353,52 +1398,7 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o="
-        }
-      ]
-    },
-    {
-      "Route": "css/site.oyj9ml11fy.css",
-      "AssetFile": "C:\\Users\\TG-ict\\Desktop\\TG-payroll\\wwwroot\\css\\site.css",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "77381"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "text/css"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Tue, 18 Aug 2026 11:27:54 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "oyj9ml11fy"
-        },
-        {
-          "Name": "label",
-          "Value": "css/site.css"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-sJjh+6WoLU+3jUKf8Adc6nAUXEVd+3axQl0oHGMBR4o="
+          "Value": "sha256-jXqBITqvLJYlaDiv8qNbqb7k26bFLesoyBojFbYNhds="
         }
       ]
     },
@@ -6263,7 +6263,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sat, 15 Aug 2026 04:56:49 GMT"
+          "Value": "Wed, 19 Aug 2026 07:12:40 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -6300,7 +6300,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sat, 15 Aug 2026 04:56:49 GMT"
+          "Value": "Wed, 19 Aug 2026 07:12:40 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -6345,7 +6345,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sat, 15 Aug 2026 04:56:49 GMT"
+          "Value": "Wed, 19 Aug 2026 07:12:40 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -6390,7 +6390,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sat, 15 Aug 2026 04:56:49 GMT"
+          "Value": "Wed, 19 Aug 2026 07:12:40 GMT"
         },
         {
           "Name": "Cache-Control",

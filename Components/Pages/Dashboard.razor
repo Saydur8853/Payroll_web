@@ -47,7 +47,11 @@ else
                     Navigation.NavigateTo("/EmployeeInformation", forceLoad: true);
                     return;
                 }
-                else if (HasModuleRecursive(menu, item => item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase)))
+                else if (HasModuleRecursive(menu, item => 
+                    item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase) || 
+                    item.Name.Contains("USER & SYSTEM", StringComparison.OrdinalIgnoreCase) ||
+                    item.Name.Contains("User Privilege", StringComparison.OrdinalIgnoreCase) ||
+                    item.Name.Contains("Control Entry", StringComparison.OrdinalIgnoreCase)))
                 {
                     Navigation.NavigateTo("/UserManagement", forceLoad: true);
                     return;

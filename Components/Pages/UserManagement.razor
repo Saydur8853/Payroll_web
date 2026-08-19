@@ -1,0 +1,1021 @@
+@page "/UserManagement"
+@using System.Web
+@inject IHttpContextAccessor HttpContextAccessor
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+@inject ILogger<UserManagement> Logger
+
+<PageTitle>User & System Management - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="p-6 text-center text-slate-500">Loading User & System Management...</div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to view User & System Management.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">ADMINISTRATION & SECURITY</p>
+            <h1>User & System Management</h1>
+            <p>Manage system user privileges, controls, company settings, and task activity tracking.</p>
+        </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="management-tabs-container">
+        <div class="management-tabs">
+            <button type="button" class="tab-btn @(activeTab == "users" ? "active" : "")" @onclick='() => SetTab("users")'>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                <span>User Privileges</span>
+            </button>
+            <button type="button" class="tab-btn @(activeTab == "controls" ? "active" : "")" @onclick='() => SetTab("controls")'>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+                <span>Control Entry</span>
+                <span class="tab-badge">@allControls.Count</span>
+            </button>
+            <button type="button" class="tab-btn @(activeTab == "company" ? "active" : "")" @onclick='() => SetTab("company")'>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9zM7 13h2v2H7v-2zm4 0h2v2h-2v-2z" clip-rule="evenodd"/></svg>
+                <span>Set Company</span>
+                <span class="tab-badge">@companies.Count</span>
+            </button>
+            <button type="button" class="tab-btn @(activeTab == "tracking" ? "active" : "")" @onclick='() => SetTab("tracking")'>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                <span>Tracking Task</span>
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="database-error management-message">@errorMessage</div>
+    }
+
+    <!-- TAB 1: CONTROL ENTRY & MENU MASTER -->
+    @if (activeTab == "controls")
+    {
+        <div class="control-entry-shell">
+            <!-- Control Form Card -->
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editControlId > 0 ? $"Edit Control (ID: {editControlId})" : "Add New Control")</h2>
+                    <p>Register a new system menu, module, or screen control into the database.</p>
+                </div>
+                <form @onsubmit="SaveControl" @onsubmit:preventDefault>
+                    <div class="control-form-fields">
+                        <label>
+                            <span>Control / Menu Name <span style="color:#e11d48;">*</span></span>
+                            <input @bind="controlNameInput" @bind:event="oninput" placeholder="e.g. Daily Attendance Report" required maxlength="120" />
+                        </label>
+
+                        <label>
+                            <span>Parent / Calling Menu (Destination)</span>
+                            <select @bind="callingIdInput">
+                                <option value="">🌟 [Create as New Main / Root Category on Sidebar]</option>
+                                <optgroup label="📂 Existing Category Folders (Place as Sub-Menu inside)">
+                                    @foreach (var parent in moduleTree.OrderBy(m => m.Name))
+                                    {
+                                        <option value="@parent.Id">
+                                            📂 @parent.Name (ID: @parent.Id) — contains @(parent.Children.Count) sub-menus
+                                        </option>
+                                    }
+                                </optgroup>
+                            </select>
+                            <small class="field-hint">Choose where this menu item will be located.</small>
+                        </label>
+
+                        <label>
+                            <span>Control Type</span>
+                            <select @bind="controlTypeInput">
+                                @foreach (var ctype in controlTypes)
+                                {
+                                    <option value="@ctype">@ctype</option>
+                                }
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Priority Sequence</span>
+                            <input @bind="priorityInput" type="number" min="0" max="9999" required />
+                        </label>
+                    </div>
+
+                    <div class="control-location-preview">
+                        <span class="preview-label">📍 Live Placement Preview:</span>
+                        <div class="preview-breadcrumb">
+                            <span class="crumb-item crumb-sidebar">📌 Sidebar</span>
+                            <span class="crumb-sep">➔</span>
+                            @if (callingIdInput is null or 0)
+                            {
+                                <span class="crumb-item crumb-child">📁 @(string.IsNullOrWhiteSpace(controlNameInput) ? "New Item" : controlNameInput) (Main Sidebar Category)</span>
+                            }
+                            else
+                            {
+                                var parentName = moduleTree.FirstOrDefault(m => m.Id == callingIdInput)?.Name ?? "Parent";
+                                <span class="crumb-item crumb-parent">📂 @parentName</span>
+                                <span class="crumb-sep">➔</span>
+                                <span class="crumb-item crumb-child">↳ 📄 @(string.IsNullOrWhiteSpace(controlNameInput) ? "New Item" : controlNameInput)</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetControlForm">
+                            <span>Reset Form</span>
+                        </button>
+                        <button type="submit" class="btn-primary-action @(editControlId > 0 ? "btn-update-mode" : "")">
+                            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
+                            <span>@(editControlId > 0 ? $"Update Control (ID: {editControlId})" : "Save New Control")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Controls Data Grid & Table -->
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered System Controls</h2>
+                        <p>Total @allControls.Count controls in database `CONTROLS` table.</p>
+                    </div>
+                    <div class="control-toolbar-actions">
+                        <div class="control-sort-wrap">
+                            <label>Sort by:</label>
+                            <select @bind="controlsSortOption">
+                                <option value="priority-asc">Priority (Low → High)</option>
+                                <option value="priority-desc">Priority (High → Low)</option>
+                                <option value="id-asc">Control ID (1 → N)</option>
+                                <option value="id-desc">Control ID (N → 1)</option>
+                                <option value="name-asc">Control Name (A → Z)</option>
+                                <option value="name-desc">Control Name (Z → A)</option>
+                                <option value="parent-asc">Parent Menu (A → Z)</option>
+                                <option value="type-asc">Type (A → Z)</option>
+                            </select>
+                        </div>
+                        <div class="control-search-wrap">
+                            <input type="text" placeholder="Search controls..." @bind="controlsSearchQuery" @bind:event="oninput" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">ID</th>
+                                <th>Control Name</th>
+                                <th>Parent Menu</th>
+                                <th style="width: 80px;">Type</th>
+                                <th style="width: 75px;">Priority</th>
+                                <th style="width: 110px; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ctrl in SortedFilteredControls)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@ctrl.ControlId</span></td>
+                                    <td><strong class="ctrl-name-text">@ctrl.ControlName</strong></td>
+                                    <td>
+                                        @if (ctrl.CallingId is null or 0)
+                                        {
+                                            <span class="badge-root">Root Category</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge-sub">↳ @ctrl.ParentName</span>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@ctrl.ControlType</span></td>
+                                    <td><span class="priority-text">@ctrl.Priority</span></td>
+                                    <td style="text-align: center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditControl(ctrl)" title="Edit this control">
+                                                Edit
+                                            </button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick="() => DeleteControl(ctrl)" title="Delete control">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- TAB 2: SET COMPANY MANAGEMENT -->
+    @if (activeTab == "company")
+    {
+        <div class="control-entry-shell">
+            <!-- Company Form Card -->
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editCompanyId > 0 ? $"Edit Company (ID: {editCompanyId})" : "Register Company")</h2>
+                    <p>Configure company entities, addresses, short names, and logo settings.</p>
+                </div>
+                <form @onsubmit="SaveCompany" @onsubmit:preventDefault>
+                    <div class="control-form-fields">
+                        <label>
+                            <span>Company Name <span style="color:#e11d48;">*</span></span>
+                            <input @bind="companyNameInput" placeholder="e.g. NTTML Mirjapur Mills Ltd" required maxlength="150" />
+                        </label>
+
+                        <label>
+                            <span>Short Name / Remarks</span>
+                            <input @bind="companyRemarksInput" placeholder="e.g. NTTML" maxlength="50" />
+                        </label>
+
+                        <label>
+                            <span>Company Address</span>
+                            <input @bind="companyAddressInput" placeholder="e.g. Mirjapur, Tangail" maxlength="200" />
+                        </label>
+
+                        <label>
+                            <span>Logo File / Path</span>
+                            <input @bind="companyLogoPathInput" placeholder="e.g. /images/logo.png" maxlength="250" />
+                        </label>
+                    </div>
+
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetCompanyForm">
+                            <span>Reset Form</span>
+                        </button>
+                        <button type="submit" class="btn-primary-action @(editCompanyId > 0 ? "btn-update-mode" : "")">
+                            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
+                            <span>@(editCompanyId > 0 ? $"Update Company (ID: {editCompanyId})" : "Save Company")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Registered Companies Table -->
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Companies</h2>
+                        <p>Total @companies.Count company entities in database `COMPANY` table.</p>
+                    </div>
+                </div>
+
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">ID</th>
+                                <th>Company Name</th>
+                                <th>Short Name</th>
+                                <th>Address</th>
+                                <th style="width: 110px; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var comp in companies)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@comp.CompanyId</span></td>
+                                    <td><strong class="ctrl-name-text">@comp.CompanyName</strong></td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(comp.Remarks) ? "-" : comp.Remarks)</span></td>
+                                    <td><span style="color:#64748b;font-size:12.5px;">@(string.IsNullOrWhiteSpace(comp.Address) ? "-" : comp.Address)</span></td>
+                                    <td style="text-align: center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditCompany(comp)" title="Edit company">
+                                                Edit
+                                            </button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick="() => DeleteCompany(comp)" title="Delete company">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- TAB 3: TRACKING TASK & AUDIT -->
+    @if (activeTab == "tracking")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Task & User Activity Tracking</h2>
+                    <p>Real-time audit log, active user sessions, and database operation status.</p>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-top:14px;">
+                    <div style="background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">
+                        <span style="font-size:12px;color:#64748b;font-weight:700;display:block;">ACTIVE OPERATOR</span>
+                        <strong style="font-size:18px;color:#0f172a;margin-top:4px;display:block;">@currentUserName</strong>
+                        <small style="color:#16a34a;font-weight:700;">● Online Session</small>
+                    </div>
+                    <div style="background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">
+                        <span style="font-size:12px;color:#64748b;font-weight:700;display:block;">ORGANIZATION</span>
+                        <strong style="font-size:18px;color:#0f172a;margin-top:4px;display:block;">@companyName</strong>
+                        <small style="color:#64748b;">Active Company</small>
+                    </div>
+                    <div style="background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">
+                        <span style="font-size:12px;color:#64748b;font-weight:700;display:block;">TOTAL SYSTEM USERS</span>
+                        <strong style="font-size:18px;color:#2563eb;margin-top:4px;display:block;">@users.Count Accounts</strong>
+                        <small style="color:#64748b;">@users.Count(u => u.Admin == 1) Admins</small>
+                    </div>
+                    <div style="background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">
+                        <span style="font-size:12px;color:#64748b;font-weight:700;display:block;">REGISTERED CONTROLS</span>
+                        <strong style="font-size:18px;color:#059669;margin-top:4px;display:block;">@allControls.Count Modules</strong>
+                        <small style="color:#64748b;">CONTROLS table live</small>
+                    </div>
+                </div>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Recent System Activity & User Accounts</h2>
+                        <p>Live tracking of registered payroll operator profiles.</p>
+                    </div>
+                </div>
+
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:70px;">User ID</th>
+                                <th>Username</th>
+                                <th>Role / Privilege</th>
+                                <th>Company Affiliation</th>
+                                <th>Assigned Modules</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in users)
+                            {
+                                var count = (user.PrivilegeArray ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Length;
+                                <tr>
+                                    <td><span class="id-badge">#@user.UserId</span></td>
+                                    <td><strong class="ctrl-name-text">@user.UserName</strong></td>
+                                    <td>
+                                        @if (user.Admin == 1)
+                                        {
+                                            <span class="admin-badge">Administrator (Full Access)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="type-pill">Standard User</span>
+                                        }
+                                    </td>
+                                    <td><span>@(string.IsNullOrWhiteSpace(user.CompanyId) ? "Default" : "Company #" + user.CompanyId)</span></td>
+                                    <td>
+                                        <span class="type-pill" style="background:#eff6ff;color:#1d4ed8;">@(user.Admin == 1 ? "All (" + modules.Count + ")" : count + " Modules")</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- TAB 4: USER ROLES & ACCESS -->
+    @if (activeTab == "users")
+    {
+        <section class="create-user-panel user-create-panel">
+            <div class="create-user-title"><div><h2>Add New User Account</h2><p>Create a login and assign its role and module privileges.</p></div></div>
+            <form @onsubmit="CreateUser" @onsubmit:preventDefault>
+                <div class="user-fields">
+                    <label><span>Username</span><input @bind="newUsername" maxlength="80" autocomplete="off" required /></label>
+                    <label><span>Password</span><input @bind="newPassword" type="password" maxlength="50" autocomplete="new-password" required /></label>
+                    <label>
+                        <span>Role</span>
+                        <select @bind="newRole" @bind:after="OnNewUserRoleChanged">
+                            <option value="User">Standard user</option>
+                            <option value="Admin">Administrator</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="create-module-heading">
+                    <h3>Module Privileges (Hierarchical Categories)</h3>
+                    <span>Selecting a Root Category automatically checks its sub-menus. Admin role receives all modules.</span>
+                </div>
+                <div class="privilege-tree-container">
+                    @foreach (var root in moduleTree)
+                    {
+                        <div class="privilege-group-card">
+                            <div class="privilege-group-header">
+                                <label class="privilege-root-label">
+                                    <input type="checkbox"
+                                           checked="@newUserModuleIds.Contains(root.Id)"
+                                           disabled="@(newRole == "Admin")"
+                                           @onchange="(e) => ToggleNewUserRoot(root, (bool)(e.Value ?? false))" />
+                                    <span>📁 @root.Name <small style="color:#64748b;font-weight:normal;">(ID: @root.Id)</small></span>
+                                </label>
+                                <div class="privilege-group-meta">
+                                    <span class="privilege-count-badge">@(root.Children.Count > 0 ? root.Children.Count + " sub-menus" : "Root module")</span>
+                                    @if (root.Children.Count > 0 && newRole != "Admin")
+                                    {
+                                        <button type="button" class="privilege-toggle-btn" @onclick="() => ToggleNewUserAll(root)">Toggle All</button>
+                                    }
+                                </div>
+                            </div>
+                            @if (root.Children.Count > 0)
+                            {
+                                <div class="privilege-group-body">
+                                    <div class="privilege-children-grid">
+                                        @foreach (var child in root.Children)
+                                        {
+                                            <label class="privilege-child-option">
+                                                <input type="checkbox"
+                                                       checked="@newUserModuleIds.Contains(child.Id)"
+                                                       disabled="@(newRole == "Admin")"
+                                                       @onchange="(e) => ToggleNewUserChild(root, child.Id, (bool)(e.Value ?? false))" />
+                                                <div class="privilege-child-info">
+                                                    <strong>↳ @child.Name</strong>
+                                                    <small>Module ID: @child.Id</small>
+                                                </div>
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="module-actions"><button type="submit">Create User</button></div>
+            </form>
+        </section>
+
+        <div class="management-shell">
+            <aside class="user-list-panel">
+                <h2>User Accounts</h2>
+                @foreach (var user in users)
+                {
+                    <button type="button" class="user-row @(user.UserId == selectedUserId ? "selected" : "")" @onclick="() => SelectUser(user.UserId)" style="border:none;background:transparent;text-align:left;width:100%;cursor:pointer;">
+                        <span class="user-avatar">@((user.UserName ?? "U")[0].ToString().ToUpper())</span>
+                        <span><strong>@user.UserName</strong><small>@(user.Admin == 1 ? "Administrator" : "Standard user")</small></span>
+                    </button>
+                }
+            </aside>
+
+            <section class="module-panel">
+                @if (selectedUser is null)
+                {
+                    <p>No user found.</p>
+                }
+                else
+                {
+                    <div class="module-panel-title">
+                        <div><h2>Module Access Permissions</h2><p>@selectedUser.UserName · @(selectedUserIsAdmin ? "Administrator" : "Standard user")</p></div>
+                        @if (selectedUserIsAdmin)
+                        {
+                            <span class="admin-badge">All modules enabled</span>
+                        }
+                    </div>
+                    <form @onsubmit="SavePrivileges" @onsubmit:preventDefault>
+                        <div class="privilege-tree-container">
+                            @foreach (var root in moduleTree)
+                            {
+                                <div class="privilege-group-card">
+                                    <div class="privilege-group-header">
+                                        <label class="privilege-root-label">
+                                            <input type="checkbox"
+                                                   checked="@selectedModuleIds.Contains(root.Id)"
+                                                   disabled="@selectedUserIsAdmin"
+                                                   @onchange="(e) => ToggleSelectedRoot(root, (bool)(e.Value ?? false))" />
+                                            <span>📁 @root.Name <small style="color:#64748b;font-weight:normal;">(ID: @root.Id)</small></span>
+                                        </label>
+                                        <div class="privilege-group-meta">
+                                            <span class="privilege-count-badge">@(root.Children.Count > 0 ? root.Children.Count + " sub-menus" : "Root module")</span>
+                                            @if (root.Children.Count > 0 && !selectedUserIsAdmin)
+                                            {
+                                                <button type="button" class="privilege-toggle-btn" @onclick="() => ToggleSelectedAll(root)">Toggle All</button>
+                                            }
+                                        </div>
+                                    </div>
+                                    @if (root.Children.Count > 0)
+                                    {
+                                        <div class="privilege-group-body">
+                                            <div class="privilege-children-grid">
+                                                @foreach (var child in root.Children)
+                                                {
+                                                    <label class="privilege-child-option">
+                                                        <input type="checkbox"
+                                                               checked="@selectedModuleIds.Contains(child.Id)"
+                                                               disabled="@selectedUserIsAdmin"
+                                                               @onchange="(e) => ToggleSelectedChild(root, child.Id, (bool)(e.Value ?? false))" />
+                                                        <div class="privilege-child-info">
+                                                            <strong>↳ @child.Name</strong>
+                                                            <small>Module ID: @child.Id</small>
+                                                        </div>
+                                                    </label>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="module-actions" style="margin-top: 18px;"><button type="submit">Save Module Access</button></div>
+                    </form>
+                }
+            </section>
+        </div>
+    }
+}
+
+@code {
+    private const int DashboardModuleId = 184;
+
+    [SupplyParameterFromQuery(Name = "activeTab")]
+    public string? QueryActiveTab { get; set; }
+
+    [SupplyParameterFromQuery(Name = "userId")]
+    public int? QueryUserId { get; set; }
+
+    private bool loaded;
+    private bool hasAccess;
+    private string activeTab = "users";
+    private string currentUserName = "User";
+    private string companyName = "Payroll";
+    private bool currentUserIsAdmin;
+    private int currentUserId;
+
+    private List<PayrollUser> users = [];
+    private List<NavigationItem> modules = [];
+    private List<NavigationItem> moduleTree = [];
+    private List<ControlItem> allControls = [];
+    private List<string> controlTypes = ["MENU", "FORM", "REPORT", "BUTTON"];
+    private List<CompanyItem> companies = [];
+    private PayrollUser? selectedUser;
+    private bool selectedUserIsAdmin => selectedUser?.Admin == 1;
+
+    private int selectedUserId;
+    private HashSet<int> selectedModuleIds = [];
+
+    private string newUsername = string.Empty;
+    private string newPassword = string.Empty;
+    private string newRole = "User";
+    private HashSet<int> newUserModuleIds = [DashboardModuleId];
+
+    // Control Entry
+    private int editControlId;
+    private string controlNameInput = string.Empty;
+    private int? callingIdInput;
+    private string controlTypeInput = "MENU";
+    private int priorityInput = 1;
+    private string controlsSearchQuery = string.Empty;
+    private string controlsSortOption = "priority-asc";
+
+    // Company Entry
+    private int editCompanyId;
+    private string companyNameInput = string.Empty;
+    private string companyAddressInput = string.Empty;
+    private string companyRemarksInput = string.Empty;
+    private string companyLogoPathInput = string.Empty;
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out currentUserId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        currentUserName = session?.GetString("UserName") ?? "User";
+        companyName = session?.GetString("CompanyName") ?? "Payroll";
+        currentUserIsAdmin = session?.GetString("IsAdmin") == "1";
+
+        var menu = await PayrollRepository.GetMenuAsync(currentUserId);
+        hasAccess = currentUserIsAdmin || HasModuleRecursive(menu, item => 
+            item.Name.Contains("USER MANAGEMENT", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Contains("USER & SYSTEM", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Contains("User Privilege", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Contains("Control Entry", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasAccess)
+        {
+            loaded = true;
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(QueryActiveTab))
+        {
+            activeTab = QueryActiveTab.ToLowerInvariant();
+        }
+
+        await LoadDataAsync(QueryUserId);
+        loaded = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (loaded && !string.IsNullOrWhiteSpace(QueryActiveTab) && QueryActiveTab != activeTab)
+        {
+            activeTab = QueryActiveTab.ToLowerInvariant();
+        }
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task LoadDataAsync(int? preferredUserId)
+    {
+        users = await PayrollRepository.GetUsersAsync();
+        modules = await PayrollRepository.GetAllMenuControlsAsync();
+        moduleTree = await PayrollRepository.GetAllMenuTreeAsync();
+        allControls = await PayrollRepository.GetControlsDetailedAsync();
+        companies = await PayrollRepository.GetCompaniesAsync();
+
+        if (users.Count > 0)
+        {
+            var targetId = preferredUserId ?? selectedUserId;
+            selectedUser = users.FirstOrDefault(u => u.UserId == targetId) ?? users[0];
+            selectedUserId = selectedUser.UserId;
+            LoadSelectedUserModules();
+        }
+    }
+
+    private void SelectUser(int userId)
+    {
+        selectedUserId = userId;
+        selectedUser = users.FirstOrDefault(u => u.UserId == userId);
+        LoadSelectedUserModules();
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private void LoadSelectedUserModules()
+    {
+        if (selectedUser is null)
+        {
+            selectedModuleIds.Clear();
+            return;
+        }
+
+        if (selectedUser.Admin == 1)
+        {
+            selectedModuleIds = modules.Select(m => m.Id).ToHashSet();
+        }
+        else
+        {
+            var ids = (selectedUser.PrivilegeArray ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(id => int.TryParse(id, out var parsed) ? parsed : 0)
+                .Where(id => id > 0)
+                .ToHashSet();
+            selectedModuleIds = ids;
+        }
+    }
+
+    private void OnNewUserRoleChanged()
+    {
+        if (newRole == "Admin")
+        {
+            newUserModuleIds = modules.Select(m => m.Id).ToHashSet();
+        }
+        else
+        {
+            newUserModuleIds = [DashboardModuleId];
+        }
+    }
+
+    private void ToggleNewUserRoot(NavigationItem root, bool isChecked)
+    {
+        if (isChecked)
+        {
+            newUserModuleIds.Add(root.Id);
+            foreach (var child in root.Children) newUserModuleIds.Add(child.Id);
+        }
+        else
+        {
+            newUserModuleIds.Remove(root.Id);
+            foreach (var child in root.Children) newUserModuleIds.Remove(child.Id);
+        }
+    }
+
+    private void ToggleNewUserChild(NavigationItem root, int childId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            newUserModuleIds.Add(childId);
+            newUserModuleIds.Add(root.Id);
+        }
+        else
+        {
+            newUserModuleIds.Remove(childId);
+            if (!root.Children.Any(c => newUserModuleIds.Contains(c.Id)))
+            {
+                newUserModuleIds.Remove(root.Id);
+            }
+        }
+    }
+
+    private void ToggleNewUserAll(NavigationItem root)
+    {
+        var allChecked = root.Children.All(c => newUserModuleIds.Contains(c.Id));
+        ToggleNewUserRoot(root, !allChecked);
+    }
+
+    private void ToggleSelectedRoot(NavigationItem root, bool isChecked)
+    {
+        if (isChecked)
+        {
+            selectedModuleIds.Add(root.Id);
+            foreach (var child in root.Children) selectedModuleIds.Add(child.Id);
+        }
+        else
+        {
+            selectedModuleIds.Remove(root.Id);
+            foreach (var child in root.Children) selectedModuleIds.Remove(child.Id);
+        }
+    }
+
+    private void ToggleSelectedChild(NavigationItem root, int childId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            selectedModuleIds.Add(childId);
+            selectedModuleIds.Add(root.Id);
+        }
+        else
+        {
+            selectedModuleIds.Remove(childId);
+            if (!root.Children.Any(c => selectedModuleIds.Contains(c.Id)))
+            {
+                selectedModuleIds.Remove(root.Id);
+            }
+        }
+    }
+
+    private void ToggleSelectedAll(NavigationItem root)
+    {
+        var allChecked = root.Children.All(c => selectedModuleIds.Contains(c.Id));
+        ToggleSelectedRoot(root, !allChecked);
+    }
+
+    private async Task SavePrivileges()
+    {
+        if (!hasAccess) return;
+        try
+        {
+            await PayrollRepository.UpdateUserPrivilegesAsync(selectedUserId, selectedModuleIds.ToList());
+            users = await PayrollRepository.GetUsersAsync();
+            selectedUser = users.FirstOrDefault(u => u.UserId == selectedUserId);
+            successMessage = "Module permissions saved successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save user privileges");
+            errorMessage = "Failed to save permissions: " + ex.Message;
+        }
+    }
+
+    private async Task CreateUser()
+    {
+        if (!hasAccess) return;
+        if (string.IsNullOrWhiteSpace(newUsername) || string.IsNullOrWhiteSpace(newPassword))
+        {
+            errorMessage = "Username and password are required.";
+            return;
+        }
+
+        try
+        {
+            var companyId = HttpContextAccessor.HttpContext?.Session?.GetString("CompanyId") ?? "1";
+            var createdId = await PayrollRepository.CreateUserAsync(
+                newUsername.Trim(),
+                newPassword,
+                newRole == "Admin",
+                currentUserId,
+                companyId,
+                newUserModuleIds.ToList());
+
+            newUsername = string.Empty;
+            newPassword = string.Empty;
+            newRole = "User";
+            newUserModuleIds = [DashboardModuleId];
+
+            await LoadDataAsync(createdId);
+            successMessage = "User created successfully. The new user can now sign in.";
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "User creation failed");
+            errorMessage = "Failed to create user: " + ex.Message;
+        }
+    }
+
+    // Controls CRUD
+    private IEnumerable<ControlItem> SortedFilteredControls
+    {
+        get
+        {
+            var list = allControls.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(controlsSearchQuery))
+            {
+                var q = controlsSearchQuery.Trim();
+                list = list.Where(c => 
+                    c.ControlName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    (c.ParentName ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    c.ControlType.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    c.ControlId.ToString().Contains(q));
+            }
+
+            return controlsSortOption switch
+            {
+                "priority-desc" => list.OrderByDescending(c => c.Priority),
+                "id-asc" => list.OrderBy(c => c.ControlId),
+                "id-desc" => list.OrderByDescending(c => c.ControlId),
+                "name-asc" => list.OrderBy(c => c.ControlName),
+                "name-desc" => list.OrderByDescending(c => c.ControlName),
+                "parent-asc" => list.OrderBy(c => c.ParentName ?? ""),
+                "type-asc" => list.OrderBy(c => c.ControlType),
+                _ => list.OrderBy(c => c.Priority)
+            };
+        }
+    }
+
+    private void EditControl(ControlItem ctrl)
+    {
+        editControlId = ctrl.ControlId;
+        controlNameInput = ctrl.ControlName;
+        callingIdInput = ctrl.CallingId;
+        controlTypeInput = ctrl.ControlType;
+        priorityInput = ctrl.Priority;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private void ResetControlForm()
+    {
+        editControlId = 0;
+        controlNameInput = string.Empty;
+        callingIdInput = null;
+        controlTypeInput = "MENU";
+        priorityInput = 1;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task SaveControl()
+    {
+        if (!hasAccess) return;
+        if (string.IsNullOrWhiteSpace(controlNameInput))
+        {
+            errorMessage = "Control Name is required.";
+            return;
+        }
+
+        try
+        {
+            if (editControlId > 0)
+            {
+                await PayrollRepository.UpdateControlAsync(editControlId, controlNameInput.Trim(), callingIdInput, controlTypeInput, priorityInput);
+                successMessage = "Control / menu item updated successfully.";
+            }
+            else
+            {
+                await PayrollRepository.CreateControlAsync(controlNameInput.Trim(), callingIdInput, controlTypeInput, priorityInput);
+                successMessage = "New control / menu item created successfully in CONTROLS table.";
+            }
+
+            ResetControlForm();
+            allControls = await PayrollRepository.GetControlsDetailedAsync();
+            moduleTree = await PayrollRepository.GetAllMenuTreeAsync();
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save control");
+            errorMessage = "Failed to save control: " + ex.Message;
+        }
+    }
+
+    private async Task DeleteControl(ControlItem ctrl)
+    {
+        if (!hasAccess) return;
+        try
+        {
+            await PayrollRepository.DeleteControlAsync(ctrl.ControlId);
+            allControls = await PayrollRepository.GetControlsDetailedAsync();
+            moduleTree = await PayrollRepository.GetAllMenuTreeAsync();
+            if (editControlId == ctrl.ControlId) ResetControlForm();
+            successMessage = $"Control '{ctrl.ControlName}' deleted successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete control");
+            errorMessage = "Failed to delete control: " + ex.Message;
+        }
+    }
+
+    // Company CRUD
+    private void EditCompany(CompanyItem comp)
+    {
+        editCompanyId = comp.CompanyId;
+        companyNameInput = comp.CompanyName;
+        companyAddressInput = comp.Address ?? string.Empty;
+        companyRemarksInput = comp.Remarks ?? string.Empty;
+        companyLogoPathInput = comp.CompanyLogoPath ?? string.Empty;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private void ResetCompanyForm()
+    {
+        editCompanyId = 0;
+        companyNameInput = string.Empty;
+        companyAddressInput = string.Empty;
+        companyRemarksInput = string.Empty;
+        companyLogoPathInput = string.Empty;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task SaveCompany()
+    {
+        if (!hasAccess) return;
+        if (string.IsNullOrWhiteSpace(companyNameInput))
+        {
+            errorMessage = "Company Name is required.";
+            return;
+        }
+
+        try
+        {
+            if (editCompanyId > 0)
+            {
+                await PayrollRepository.UpdateCompanyAsync(editCompanyId, companyNameInput.Trim(), companyAddressInput.Trim(), companyRemarksInput.Trim(), companyLogoPathInput.Trim());
+                successMessage = "Company information updated successfully.";
+            }
+            else
+            {
+                await PayrollRepository.CreateCompanyAsync(companyNameInput.Trim(), companyAddressInput.Trim(), companyRemarksInput.Trim(), companyLogoPathInput.Trim());
+                successMessage = "Company registered successfully in COMPANY table.";
+            }
+
+            ResetCompanyForm();
+            companies = await PayrollRepository.GetCompaniesAsync();
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save company");
+            errorMessage = "Failed to save company: " + ex.Message;
+        }
+    }
+
+    private async Task DeleteCompany(CompanyItem comp)
+    {
+        if (!hasAccess) return;
+        try
+        {
+            await PayrollRepository.DeleteCompanyAsync(comp.CompanyId);
+            companies = await PayrollRepository.GetCompaniesAsync();
+            if (editCompanyId == comp.CompanyId) ResetCompanyForm();
+            successMessage = $"Company '{comp.CompanyName}' deleted successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete company");
+            errorMessage = "Failed to delete company: " + ex.Message;
+        }
+    }
+
+    private static bool HasModuleRecursive(IEnumerable<NavigationItem> items, Func<NavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item)) return true;
+            if (item.Children.Count > 0 && HasModuleRecursive(item.Children, predicate)) return true;
+        }
+        return false;
+    }
+}

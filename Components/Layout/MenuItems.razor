@@ -2,7 +2,23 @@
 {
     @foreach (var item in FilteredItems)
     {
-        if (item.Children.Count > 0)
+        if (IsUserManagementRoot(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/UserManagement" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (item.Children.Count > 0)
         {
             <details class="menu-group" open="@IsOpen(item)">
                 <summary class="menu-group-summary">
@@ -20,52 +36,116 @@
                 </div>
             </details>
         }
+        else if (IsDashboardItem(item.Name, item.Id))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Dashboard" Match="NavLinkMatch.All" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
         else if (IsEmployeeItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/EmployeeInformation" Match="NavLinkMatch.Prefix" title="@item.Name">
-                <span class="menu-bullet-dot"></span>
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
                 <span class="menu-text">@item.Name</span>
-                <span class="menu-status-badge available">Live</span>
             </NavLink>
         }
         else if (IsControlEntryItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=controls" Match="NavLinkMatch.Prefix" title="@item.Name">
-                <span class="menu-bullet-dot"></span>
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
                 <span class="menu-text">@item.Name</span>
-                <span class="menu-status-badge available">Live</span>
             </NavLink>
         }
         else if (IsSetCompanyItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=company" Match="NavLinkMatch.Prefix" title="@item.Name">
-                <span class="menu-bullet-dot"></span>
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
                 <span class="menu-text">@item.Name</span>
-                <span class="menu-status-badge available">Live</span>
             </NavLink>
         }
         else if (IsTrackingTaskItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=tracking" Match="NavLinkMatch.Prefix" title="@item.Name">
-                <span class="menu-bullet-dot"></span>
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
                 <span class="menu-text">@item.Name</span>
-                <span class="menu-status-badge available">Live</span>
             </NavLink>
         }
         else if (IsUserManagementItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=users" Match="NavLinkMatch.Prefix" title="@item.Name">
-                <span class="menu-bullet-dot"></span>
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
                 <span class="menu-text">@item.Name</span>
-                <span class="menu-status-badge available">Live</span>
             </NavLink>
         }
         else
         {
             <div class="menu-item unavailable" title="@item.Name (Module under development)">
-                <span class="menu-bullet-dot mute"></span>
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot mute"></span>
+                }
                 <span class="menu-text">@item.Name</span>
-                <span class="menu-status-badge locked">Soon</span>
             </div>
         }
     }
@@ -81,13 +161,10 @@
         get
         {
             if (Items is null) return [];
-            var list = Items.Where(item => 
-                item.Id != 184 && 
-                !(Level == 0 && item.Name.Contains("USER MANAGEMENT", StringComparison.OrdinalIgnoreCase)));
-            if (string.IsNullOrWhiteSpace(SearchQuery)) return list;
+            if (string.IsNullOrWhiteSpace(SearchQuery)) return Items;
 
             var q = SearchQuery.Trim();
-            return list.Where(item => MatchesSearch(item, q));
+            return Items.Where(item => MatchesSearch(item, q));
         }
     }
 
@@ -102,6 +179,11 @@
     {
         if (!string.IsNullOrWhiteSpace(SearchQuery)) return true;
         return true;
+    }
+
+    private static bool IsDashboardItem(string name, int id)
+    {
+        return id == 184 || name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsEmployeeItem(string name)
@@ -145,10 +227,22 @@
             || name.Equals("User Privilages", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsUserManagementRoot(string name)
+    {
+        return name.Contains("USER & SYSTEM", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("USER MANAGEMENT", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("USER PRIVIL", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("USER CONTROL", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static RenderFragment GetIcon(string name) => builder =>
     {
         var n = name.ToLowerInvariant();
-        if (n.Contains("employee") || n.Contains("personnel") || n.Contains("workforce") || n.Contains("staff") || n.Contains("worker"))
+        if (n.Contains("dashboard") || n.Contains("home") || n.Contains("overview"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z""/></svg>");
+        }
+        else if (n.Contains("employee") || n.Contains("personnel") || n.Contains("workforce") || n.Contains("staff") || n.Contains("worker"))
         {
             builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z""/></svg>");
         }

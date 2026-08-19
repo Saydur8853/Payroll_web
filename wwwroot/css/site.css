@@ -256,7 +256,7 @@ input.password-mismatch { border-color: #dc3d43 !important; box-shadow: 0 0 0 2p
 }
 
 .sidebar {
-  width: 275px;
+  width: 295px;
   flex: none;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;

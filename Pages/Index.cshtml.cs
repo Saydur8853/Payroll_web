@@ -44,7 +44,11 @@ public class IndexModel(PayrollRepository payrollRepository, ILogger<IndexModel>
                 {
                     if (HasModule(menu, item => item.Name.Contains("Employee", StringComparison.OrdinalIgnoreCase)))
                         return Redirect("/EmployeeInformation");
-                    if (HasModule(menu, item => item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase)))
+                    if (HasModule(menu, item => 
+                        item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase) || 
+                        item.Name.Contains("USER & SYSTEM", StringComparison.OrdinalIgnoreCase) ||
+                        item.Name.Contains("User Privilege", StringComparison.OrdinalIgnoreCase) ||
+                        item.Name.Contains("Control Entry", StringComparison.OrdinalIgnoreCase)))
                         return Redirect("/UserManagement");
                 }
             }

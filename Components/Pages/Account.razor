@@ -1,0 +1,126 @@
+@page "/Account"
+@inject IHttpContextAccessor HttpContextAccessor
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+@inject ILogger<Account> Logger
+
+<PageTitle>My Profile & Account Settings - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="p-6 text-center text-slate-500">Loading Account Settings...</div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">MY PROFILE</p>
+            <h1>Account & Login Settings</h1>
+            <p>Manage your login credentials and personal account preferences.</p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="database-error management-message">@errorMessage</div>
+    }
+
+    <section class="create-user-panel account-panel" style="max-width: 680px;">
+        <div class="create-user-title">
+            <div>
+                <h2>Update Credentials</h2>
+                <p>Change your login username or set a new password. Internal numeric user ID remains unchanged.</p>
+            </div>
+        </div>
+        <form @onsubmit="UpdateCredentials" @onsubmit:preventDefault>
+            <div class="user-fields account-fields">
+                <label>
+                    <span>Login username</span>
+                    <input @bind="accountUsername" maxlength="80" autocomplete="username" required />
+                </label>
+                <label>
+                    <span>Current password <span style="color:#e11d48;">*</span></span>
+                    <input @bind="currentPassword" type="password" maxlength="50" autocomplete="current-password" required />
+                </label>
+                <label>
+                    <span>New password (optional)</span>
+                    <input @bind="newAccountPassword" type="password" maxlength="50" autocomplete="new-password" />
+                </label>
+                <label>
+                    <span>Confirm new password</span>
+                    <input @bind="confirmAccountPassword" type="password" maxlength="50" autocomplete="new-password" />
+                </label>
+            </div>
+            <div class="module-actions">
+                <button type="submit">Update My Login</button>
+            </div>
+        </form>
+    </section>
+}
+
+@code {
+    private bool loaded;
+    private int currentUserId;
+    private string accountUsername = string.Empty;
+    private string currentPassword = string.Empty;
+    private string newAccountPassword = string.Empty;
+    private string confirmAccountPassword = string.Empty;
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out currentUserId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        accountUsername = session?.GetString("UserName") ?? "User";
+        loaded = true;
+    }
+
+    private async Task UpdateCredentials()
+    {
+        if (string.IsNullOrWhiteSpace(accountUsername) || string.IsNullOrWhiteSpace(currentPassword))
+        {
+            errorMessage = "Current password is required to save account changes.";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(newAccountPassword) && newAccountPassword != confirmAccountPassword)
+        {
+            errorMessage = "New passwords do not match.";
+            return;
+        }
+
+        try
+        {
+            var updatedUsername = await PayrollRepository.UpdateOwnCredentialsAsync(
+                currentUserId,
+                currentPassword,
+                accountUsername.Trim(),
+                newAccountPassword);
+
+            HttpContextAccessor.HttpContext?.Session?.SetString("UserName", updatedUsername);
+            accountUsername = updatedUsername;
+            currentPassword = string.Empty;
+            newAccountPassword = string.Empty;
+            confirmAccountPassword = string.Empty;
+            successMessage = "Your username and password were updated successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Credential update failed");
+            errorMessage = "Failed to update profile: " + ex.Message;
+        }
+    }
+}

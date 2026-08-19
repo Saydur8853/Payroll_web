@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IJSRuntime JS
+@inject ILogger<EmployeeInformation> Logger
 @using EmployeeModel = TG.Payroll.Web.Models.EmployeeInformation
 
 <div class="emp-page-container">
@@ -433,25 +434,21 @@
                                                     <span class="emp-asset-label">Evaluation & Conduct</span>
                                                 </div>
 
-                                                <div class="emp-doc-eval-content">
+                                                <button type="button"
+                                                        class="emp-doc-eval-content @(!isEdit ? "is-disabled" : string.Empty)"
+                                                        disabled="@(!isEdit)"
+                                                        @onclick="OpenCharDrawerAsync"
+                                                        title="@(isEdit ? "Character Assessment & Evaluation (চারিত্রিক মূল্যায়ন)" : "Please select/find an employee first")">
                                                     <div class="emp-doc-eval-icon">
                                                         <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
                                                     </div>
                                                     <span class="emp-doc-eval-title">Character Assessment</span>
                                                     <p class="emp-doc-eval-desc">Monthly evaluation score, conduct history, and certificate records.</p>
-                                                </div>
-
-                                                <div class="emp-asset-upload-wrap">
-                                                    <button type="button"
-                                                            class="emp-btn-char-block @(!isEdit ? "is-disabled" : string.Empty)"
-                                                            disabled="@(!isEdit)"
-                                                            @onclick="OpenCharDrawerAsync"
-                                                            title="@(isEdit ? "Character Assessment & Evaluation (চারিত্রিক মূল্যায়ন)" : "Please select/find an employee first")">
-                                                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
-                                                        <span>Character Assessment (চারিত্রিক মূল্যায়ন)</span>
-                                                    </button>
-                                                    <small class="emp-file-hint">@(isEdit ? "Click to view / manage" : "Requires saved employee")</small>
-                                                </div>
+                                                    <span class="emp-doc-eval-badge">
+                                                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/></svg>
+                                                        <span>@(isEdit ? "Open Assessment & Records" : "Requires saved employee")</span>
+                                                    </span>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -884,48 +881,60 @@
     </div>
 }
 
-<!-- Crop Modal -->
+<!-- Image Cropper Modal (Matching D:\SDS-PAYROLL) -->
 @if (showCropDialog && cropSource is not null)
 {
     <div class="emp-modal-backdrop animate-fade">
-        <section class="emp-modal emp-crop-modal animate-scale" role="dialog" aria-modal="true">
-            <header class="emp-crop-header">
-                <div class="emp-crop-header-title">
-                    <div class="emp-crop-badge-icon">
-                        @(cropTarget == "signature" ? "✎" : "📷")
+        <section class="emp-modal sds-cropper-modal animate-scale" role="dialog" aria-modal="true">
+            <div class="sds-cropper-header">
+                <div class="sds-header-content">
+                    <div class="sds-header-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            @if (cropTarget == "photo")
+                            {
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            }
+                            else
+                            {
+                                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                                <path d="M2 2l7.586 7.586"></path>
+                                <circle cx="11" cy="11" r="2"></circle>
+                            }
+                        </svg>
                     </div>
                     <div>
-                        <h2>Crop @(cropTarget == "signature" ? "Signature" : "Employee Photograph")</h2>
-                        <p>@(cropTarget == "signature" ? "Drag frame and zoom to frame signature on white background" : "Drag frame and zoom to frame passport size standard portrait")</p>
+                        <h3>@(cropTarget == "photo" ? "Crop Employee Photo" : "Crop Signature")</h3>
+                        <p class="sds-modal-subtitle">@(cropTarget == "photo" ? "Adjust for passport size" : "Adjust for signature area")</p>
                     </div>
                 </div>
-                <button type="button" class="emp-modal-close" @onclick="CancelCrop" aria-label="Close">✕</button>
-            </header>
+                <button type="button" class="sds-btn-close" @onclick="CancelCrop" aria-label="Close">✕</button>
+            </div>
 
-            <div class="emp-crop-workspace" id="crop-workspace">
-                <img src="@cropSource" style="transform:scale(@cropZoom.ToString(System.Globalization.CultureInfo.InvariantCulture))" alt="Crop workspace" />
-                <div class="emp-crop-frame @(cropTarget == "signature" ? "signature-frame" : "photo-frame")" data-crop-frame>
-                    <span class="crop-corner tl"></span>
-                    <span class="crop-corner tr"></span>
-                    <span class="crop-corner bl"></span>
-                    <span class="crop-corner br"></span>
+            <div class="sds-modal-body">
+                <div class="sds-cropper-container">
+                    <canvas id="sds-crop-canvas"></canvas>
                 </div>
-                <div class="emp-crop-zoom-bar">
-                    <button type="button" class="emp-zoom-btn" @onclick="ZoomOut" title="Zoom Out">−</button>
-                    <span class="emp-zoom-label">@((cropZoom * 100).ToString("0"))%</span>
-                    <button type="button" class="emp-zoom-btn" @onclick="ZoomIn" title="Zoom In">+</button>
+
+                <div class="sds-cropper-controls vertical">
+                    <button type="button" class="sds-control-btn" onclick="window.sdsCropper?.zoomIn()" title="Zoom In">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <span class="sds-zoom-label" id="sds-zoom-label">100%</span>
+                    <button type="button" class="sds-control-btn" onclick="window.sdsCropper?.zoomOut()" title="Zoom Out">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
                 </div>
             </div>
 
-            <footer class="emp-crop-footer">
-                <div class="emp-crop-helper">
-                    <span>💡 <strong>Tip:</strong> Drag the blue frame to position. Use + / − to zoom.</span>
-                </div>
-                <div class="emp-crop-buttons">
-                    <button type="button" class="emp-btn emp-btn-secondary" @onclick="CancelCrop">Cancel</button>
-                    <button type="button" class="emp-btn emp-btn-primary" @onclick="ApplyCrop">✓ Apply & Save Crop</button>
-                </div>
-            </footer>
+            <div class="sds-modal-footer">
+                <button type="button" class="sds-btn sds-btn-secondary" @onclick="CancelCrop">Cancel</button>
+                <button type="button" class="sds-btn sds-btn-primary sds-apply-btn" @onclick="ApplyCrop">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Apply Crop</span>
+                </button>
+            </div>
         </section>
     </div>
 }
@@ -1059,7 +1068,6 @@
     private bool employeeCodeWarningLeaving;
     private string? autoSuggestedEmployeeCode;
     private int employeeCodeWarningVersion;
-    private double cropZoom = 1;
     private double unlockHintX;
     private double unlockHintY;
     private int toastVersion;
@@ -1481,6 +1489,8 @@
         ShowToast("Ready for new employee registration.");
     }
 
+    private bool cropNeedsInit;
+
     private async Task PhotoSelected(InputFileChangeEventArgs args) => await StartCropAsync(args.File, "photo");
     private async Task SignatureSelected(InputFileChangeEventArgs args) => await StartCropAsync(args.File, "signature");
 
@@ -1490,7 +1500,7 @@
         if (bytes is null) return;
         cropSource = ImageSource(bytes);
         cropTarget = target;
-        cropZoom = 1;
+        cropNeedsInit = true;
         showCropDialog = true;
     }
 
@@ -1500,8 +1510,25 @@
         if (bytes is null || bytes.Length == 0) return;
         cropSource = ImageSource(bytes);
         cropTarget = target;
-        cropZoom = 1;
+        cropNeedsInit = true;
         showCropDialog = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (showCropDialog && cropNeedsInit && cropSource is not null)
+        {
+            cropNeedsInit = false;
+            await Task.Delay(60);
+            try
+            {
+                await JS.InvokeVoidAsync("sdsCropper.init", "sds-crop-canvas", cropSource, cropTarget);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to initialize sdsCropper canvas");
+            }
+        }
     }
 
     private void RemoveImage(string target)
@@ -1515,23 +1542,28 @@
     {
         showCropDialog = false;
         cropSource = null;
+        cropNeedsInit = false;
     }
-
-    private void ZoomIn() => cropZoom = Math.Min(3, cropZoom + .1);
-    private void ZoomOut() => cropZoom = Math.Max(1, cropZoom - .1);
 
     private async Task ApplyCrop()
     {
         if (cropSource is null) return;
         try
         {
-            var result = await JS.InvokeAsync<string>("employeeImageProcessing.cropFromFrame", cropSource, cropTarget);
-            var comma = result.IndexOf(',');
-            var bytes = Convert.FromBase64String(comma >= 0 ? result[(comma + 1)..] : result);
-            if (cropTarget == "photo") employee.Photo = bytes;
-            else employee.Signature = bytes;
-            CancelCrop();
-            ShowToast(cropTarget == "photo" ? "Photo cropped and updated." : "Signature cropped and updated.");
+            var result = await JS.InvokeAsync<string>("sdsCropper.getCroppedResult");
+            if (!string.IsNullOrEmpty(result))
+            {
+                var comma = result.IndexOf(',');
+                var bytes = Convert.FromBase64String(comma >= 0 ? result[(comma + 1)..] : result);
+                if (cropTarget == "photo") employee.Photo = bytes;
+                else employee.Signature = bytes;
+                CancelCrop();
+                ShowToast(cropTarget == "photo" ? "Photo cropped and updated." : "Signature cropped and updated.");
+            }
+            else
+            {
+                CancelCrop();
+            }
         }
         catch (Exception ex)
         {

@@ -1,0 +1,632 @@
+@page "/EmployeeStatus"
+@inject EmployeeRepository EmployeeRepository
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JS
+@inject ILogger<EmployeeStatus> Logger
+@using System.Globalization
+@using System.Text
+
+<div class="emp-page-container emp-status-page">
+    <!-- Header Section -->
+    <header class="emp-status-clean-header">
+        <div class="emp-header-left">
+            <div class="emp-badge-category">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 00-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm0 4a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+                <span>RECRUITMENT & WORKFORCE STATUS</span>
+            </div>
+            <h1 class="emp-clean-title">Employee Status & Salary Register</h1>
+            <p class="emp-clean-subtitle">Filter active workforce by joining date, department, designation, and manage bulk salary, OT, and transport.</p>
+        </div>
+        
+        <div class="emp-header-right">
+            @if (hasSearched)
+            {
+                <div class="emp-total-counter-pill">
+                    <span class="pill-dot"></span>
+                    <span class="pill-text">Total: <strong>@employees.Count</strong></span>
+                </div>
+            }
+        </div>
+    </header>
+
+    <!-- Filters Section -->
+    <section class="emp-card emp-status-filter-card">
+        <div class="emp-status-filter-grid">
+            <div class="emp-field">
+                <label class="emp-label">From Date (Joining)</label>
+                <input type="date" class="emp-input" @bind="filter.FromDate" />
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">To Date (Joining)</label>
+                <input type="date" class="emp-input" @bind="filter.ToDate" />
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Unit</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="filter.UnitId">
+                        <option value="0">All Units</option>
+                        @foreach (var unit in lookups.Units)
+                        {
+                            <option value="@unit.Id">@unit.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Employee Type</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="filter.CategoryId">
+                        <option value="0">All Types</option>
+                        @foreach (var cat in lookups.Categories)
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Department</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="filter.DepartmentId">
+                        <option value="0">All Departments</option>
+                        @foreach (var dept in lookups.Departments)
+                        {
+                            <option value="@dept.Id">@dept.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Section</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="filter.SectionId">
+                        <option value="0">All Sections</option>
+                        @foreach (var sec in lookups.Sections)
+                        {
+                            <option value="@sec.Id">@sec.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Line</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="filter.LineId">
+                        <option value="0">All Lines</option>
+                        @foreach (var line in lookups.Lines)
+                        {
+                            <option value="@line.Id">@line.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Designation</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="filter.DesignationId">
+                        <option value="0">All Designations</option>
+                        @foreach (var desig in lookups.Designations)
+                        {
+                            <option value="@desig.Id">@desig.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field emp-field-search">
+                <label class="emp-label">Quick Search</label>
+                <div class="emp-search-input-wrap">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                    <input type="text" class="emp-input" placeholder="Search by Code or Name..." @bind="filter.SearchQuery" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="emp-field emp-field-actions">
+                <label class="emp-label">&nbsp;</label>
+                <div class="emp-filter-btns-wrap">
+                    <button type="button" class="emp-btn emp-btn-primary emp-btn-search" @onclick="SearchEmployeesAsync" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="emp-spinner-dot"></span>
+                            <span>Searching...</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                            <span>Search</span>
+                        }
+                    </button>
+                    <button type="button" class="emp-btn emp-btn-secondary" @onclick="ResetFilters" title="Clear Filters">Clear</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Employees Data Table Section -->
+    <section class="emp-card emp-status-table-card">
+        <div class="emp-status-table-header">
+            <div class="table-header-left">
+                <h3>
+                    @if (hasSearched)
+                    {
+                        <span>Employees List (@SortedFilteredEmployees.Count())</span>
+                    }
+                    else
+                    {
+                        <span>Employee Status Records</span>
+                    }
+                </h3>
+            </div>
+            <div class="table-header-right">
+                @if (hasSearched && employees.Count > 0)
+                {
+                    <button type="button" class="emp-btn emp-btn-secondary emp-btn-sm" @onclick="ExportToCsv" title="Export to CSV">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                        <span>Export CSV</span>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="emp-status-table-wrap">
+            <table class="emp-status-table">
+                <thead>
+                    <tr>
+                        <th class="col-center" style="width: 45px;">#</th>
+                        <th style="width: 110px;" @onclick='() => SetSort("code")' class="is-sortable">
+                            <span>Emp Code</span>
+                            <span class="sort-icon">@(sortColumn == "code" ? (sortAsc ? "▲" : "▼") : "")</span>
+                        </th>
+                        <th style="width: 200px;" @onclick='() => SetSort("name")' class="is-sortable">
+                            <span>Name</span>
+                            <span class="sort-icon">@(sortColumn == "name" ? (sortAsc ? "▲" : "▼") : "")</span>
+                        </th>
+                        <th style="width: 170px;" @onclick='() => SetSort("desig")' class="is-sortable">
+                            <span>Designation</span>
+                            <span class="sort-icon">@(sortColumn == "desig" ? (sortAsc ? "▲" : "▼") : "")</span>
+                        </th>
+                        <th style="width: 180px;">Department / Line</th>
+                        <th style="width: 140px;" @onclick='() => SetSort("doj")' class="is-sortable">
+                            <span>Joining</span>
+                            <span class="sort-icon">@(sortColumn == "doj" ? (sortAsc ? "▲" : "▼") : "")</span>
+                        </th>
+                        <th style="width: 140px; text-align: right;" @onclick='() => SetSort("gross")' class="is-sortable">
+                            <span>Gross</span>
+                            <span class="sort-icon">@(sortColumn == "gross" ? (sortAsc ? "▲" : "▼") : "")</span>
+                        </th>
+                        <th class="col-center" style="width: 70px;">Age</th>
+                        <th class="col-center" style="width: 80px;">OT</th>
+                        <th class="col-center" style="width: 80px;">Transport</th>
+                        <th style="width: 160px;">Transport Stand</th>
+                        <th class="col-center" style="width: 80px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr>
+                            <td colspan="12" class="table-loading-cell">
+                                <div class="table-spinner"></div>
+                                <span>Loading records from database...</span>
+                            </td>
+                        </tr>
+                    }
+                    else if (!hasSearched)
+                    {
+                        <tr>
+                            <td colspan="12" class="table-empty-cell">
+                                <div class="empty-search-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                </div>
+                                <strong>Select Filters & Click Search</strong>
+                                <p>Choose your desired joining date range, department, or unit and click <strong>Search</strong> to load records.</p>
+                            </td>
+                        </tr>
+                    }
+                    else if (!SortedFilteredEmployees.Any())
+                    {
+                        <tr>
+                            <td colspan="12" class="table-empty-cell">
+                                <div class="empty-icon">📁</div>
+                                <strong>No Data Found</strong>
+                                <p>No active employees found matching the selected filter criteria.</p>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        int index = 1;
+                        @foreach (var emp in SortedFilteredEmployees)
+                        {
+                            <tr class="@(emp.IsEdited ? "is-row-edited" : string.Empty)">
+                                <td class="col-center col-dim">@index</td>
+                                <td>
+                                    <span class="emp-code-badge">@emp.EmployeeCode</span>
+                                </td>
+                                <td>
+                                    <div class="emp-table-name-group">
+                                        <strong class="emp-name-text">@emp.EmployeeName</strong>
+                                        @if (!string.IsNullOrEmpty(emp.CategoryName))
+                                        {
+                                            <small class="emp-cat-text">@emp.CategoryName</small>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="emp-desig-text">@emp.DesignationName</span>
+                                </td>
+                                <td>
+                                    <div class="emp-dept-group">
+                                        <span>@emp.DepartmentName</span>
+                                        @if (!string.IsNullOrEmpty(emp.SectionName) || !string.IsNullOrEmpty(emp.LineName))
+                                        {
+                                            <small>@emp.SectionName @(string.IsNullOrEmpty(emp.LineName) ? "" : $"• {emp.LineName}")</small>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="date" 
+                                           class="emp-inline-input emp-inline-date" 
+                                           value="@(emp.DateOfJoining?.ToString("yyyy-MM-dd"))" 
+                                           @onchange="@((ChangeEventArgs e) => OnDojChanged(emp, e.Value?.ToString()))" />
+                                </td>
+                                <td style="text-align: right;">
+                                    <div class="emp-salary-input-wrap">
+                                        <span class="curr-sym">৳</span>
+                                        <input type="number" 
+                                               class="emp-inline-input emp-inline-number" 
+                                               value="@emp.Gross" 
+                                               @onchange="@((ChangeEventArgs e) => OnGrossChanged(emp, e.Value?.ToString()))" 
+                                               min="0" 
+                                               step="100" />
+                                    </div>
+                                </td>
+                                <td class="col-center">
+                                    <span class="emp-age-pill">@(emp.Age > 0 ? $"{emp.Age}y" : "—")</span>
+                                </td>
+                                <td class="col-center">
+                                    <button type="button" 
+                                            class="emp-status-toggle @(emp.OverTime == "Y" ? "is-active" : string.Empty)" 
+                                            @onclick="@(() => ToggleOvertime(emp))"
+                                            title="Click to toggle Overtime">
+                                        @(emp.OverTime == "Y" ? "Yes" : "No")
+                                    </button>
+                                </td>
+                                <td class="col-center">
+                                    <button type="button" 
+                                            class="emp-status-toggle tr-toggle @(emp.Transport == "Y" ? "is-active" : string.Empty)" 
+                                            @onclick="@(() => ToggleTransport(emp))"
+                                            title="Click to toggle Transport">
+                                        @(emp.Transport == "Y" ? "Yes" : "No")
+                                    </button>
+                                </td>
+                                <td>
+                                    <input type="text" 
+                                           class="emp-inline-input" 
+                                           placeholder="Stand name" 
+                                           value="@emp.TransportStand" 
+                                           @onchange="@((ChangeEventArgs e) => OnStandChanged(emp, e.Value?.ToString()))" />
+                                </td>
+                                <td class="col-center">
+                                    @if (emp.IsEdited)
+                                    {
+                                        <span class="badge-row-edited" title="Unsaved changes">● Edited</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-row-synced" title="Synced">Synced</span>
+                                    }
+                                </td>
+                            </tr>
+                            index++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (hasSearched && employees.Count > 0)
+        {
+            <div class="emp-status-table-footer">
+                <div class="footer-total">
+                    <strong>Total: @employees.Count</strong>
+                </div>
+            </div>
+        }
+    </section>
+
+    <!-- Floating Action Bar for Batch Save -->
+    @if (hasChanges)
+    {
+        <div class="emp-status-floating-actions animate-scale">
+            <div class="floating-left">
+                <span class="floating-badge">@editedCount</span>
+                <span><strong>@(editedCount == 1 ? "1 record modified" : $"{editedCount} records modified")</strong></span>
+            </div>
+            <div class="floating-right">
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="DiscardChanges" disabled="@isSaving">Discard</button>
+                <button type="button" class="emp-btn emp-btn-primary" @onclick="SaveChangesBatchAsync" disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <span class="emp-spinner-dot"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        <span>✓ Save Changes</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+
+    <!-- Toast Notification -->
+    @if (!string.IsNullOrEmpty(toastMessage))
+    {
+        <div class="emp-toast @(toastIsError ? "is-error" : string.Empty) animate-fade">
+            <span>@(toastIsError ? "⚠️" : "✓")</span>
+            <span>@toastMessage</span>
+        </div>
+    }
+</div>
+
+@code {
+    private List<EmployeeStatusItem> employees = [];
+    private EmployeeLookups lookups = new();
+    private EmployeeStatusFilter filter = new();
+    private bool isLoading;
+    private bool isSaving;
+    private bool hasSearched;
+
+    private string sortColumn = "code";
+    private bool sortAsc = true;
+    private int currentUserId = 1;
+
+    private string? toastMessage;
+    private bool toastIsError;
+
+    private int editedCount => employees.Count(e => e.IsEdited);
+    private bool hasChanges => editedCount > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdValue = session?.GetString("UserId");
+        if (int.TryParse(userIdValue, out var uid)) currentUserId = uid;
+
+        filter.FromDate = new DateTime(DateTime.Today.Year, 1, 1);
+        filter.ToDate = DateTime.Today;
+
+        try
+        {
+            lookups = await EmployeeRepository.GetLookupsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load Lookups for Employee Status");
+            ShowToast("Failed to load lookups: " + ex.Message, isError: true);
+        }
+    }
+
+    private async Task SearchEmployeesAsync()
+    {
+        isLoading = true;
+        try
+        {
+            employees = await EmployeeRepository.GetEmployeeStatusListAsync(filter);
+            hasSearched = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error executing status search query");
+            ShowToast("Search query failed: " + ex.Message, isError: true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ResetFilters()
+    {
+        filter = new EmployeeStatusFilter
+        {
+            FromDate = new DateTime(DateTime.Today.Year, 1, 1),
+            ToDate = DateTime.Today
+        };
+        employees.Clear();
+        hasSearched = false;
+    }
+
+    private void SetSort(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAsc = !sortAsc;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAsc = true;
+        }
+    }
+
+    private IEnumerable<EmployeeStatusItem> SortedFilteredEmployees
+    {
+        get
+        {
+            var list = employees.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(filter.SearchQuery))
+            {
+                var q = filter.SearchQuery.Trim();
+                list = list.Where(e => e.EmployeeCode.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                       e.EmployeeName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                       e.DesignationName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                       e.DepartmentName.Contains(q, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return sortColumn switch
+            {
+                "code" => sortAsc ? list.OrderBy(e => e.EmployeeCode) : list.OrderByDescending(e => e.EmployeeCode),
+                "name" => sortAsc ? list.OrderBy(e => e.EmployeeName) : list.OrderByDescending(e => e.EmployeeName),
+                "desig" => sortAsc ? list.OrderBy(e => e.DesignationName) : list.OrderByDescending(e => e.DesignationName),
+                "doj" => sortAsc ? list.OrderBy(e => e.DateOfJoining) : list.OrderByDescending(e => e.DateOfJoining),
+                "gross" => sortAsc ? list.OrderBy(e => e.Gross) : list.OrderByDescending(e => e.Gross),
+                _ => list.OrderBy(e => e.EmployeeCode)
+            };
+        }
+    }
+
+    private void OnGrossChanged(EmployeeStatusItem item, string? val)
+    {
+        if (decimal.TryParse(val, out var parsedGross))
+        {
+            item.Gross = Math.Max(0, parsedGross);
+            CheckIfEdited(item);
+        }
+    }
+
+    private void OnDojChanged(EmployeeStatusItem item, string? val)
+    {
+        if (DateTime.TryParse(val, out var parsedDate))
+        {
+            item.DateOfJoining = parsedDate;
+            CheckIfEdited(item);
+        }
+    }
+
+    private void OnStandChanged(EmployeeStatusItem item, string? val)
+    {
+        item.TransportStand = val ?? string.Empty;
+        CheckIfEdited(item);
+    }
+
+    private void ToggleOvertime(EmployeeStatusItem item)
+    {
+        item.OverTime = item.OverTime == "Y" ? "N" : "Y";
+        CheckIfEdited(item);
+    }
+
+    private void ToggleTransport(EmployeeStatusItem item)
+    {
+        item.Transport = item.Transport == "Y" ? "N" : "Y";
+        CheckIfEdited(item);
+    }
+
+    private void CheckIfEdited(EmployeeStatusItem item)
+    {
+        item.IsEdited = item.Gross != item.OriginalGross ||
+                        item.OverTime != item.OriginalOverTime ||
+                        item.Transport != item.OriginalTransport ||
+                        item.DateOfJoining != item.OriginalDateOfJoining ||
+                        item.TransportStand != item.OriginalTransportStand;
+    }
+
+    private void DiscardChanges()
+    {
+        foreach (var item in employees.Where(e => e.IsEdited))
+        {
+            item.Gross = item.OriginalGross;
+            item.OverTime = item.OriginalOverTime;
+            item.Transport = item.OriginalTransport;
+            item.DateOfJoining = item.OriginalDateOfJoining;
+            item.TransportStand = item.OriginalTransportStand;
+            item.IsEdited = false;
+        }
+        ShowToast("All modified values have been reverted.");
+    }
+
+    private async Task SaveChangesBatchAsync()
+    {
+        if (!hasChanges) return;
+        isSaving = true;
+
+        try
+        {
+            var count = await EmployeeRepository.BulkUpdateEmployeeStatusAsync(employees, currentUserId);
+            foreach (var item in employees.Where(e => e.IsEdited))
+            {
+                item.OriginalGross = item.Gross;
+                item.OriginalOverTime = item.OverTime;
+                item.OriginalTransport = item.Transport;
+                item.OriginalDateOfJoining = item.DateOfJoining;
+                item.OriginalTransportStand = item.TransportStand;
+                item.IsEdited = false;
+            }
+            ShowToast($"Successfully updated {count} employee record(s) in database.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Bulk update failed in EmployeeStatus");
+            ShowToast("Failed to save changes: " + ex.Message, isError: true);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Emp Code,Name,Designation,Department,Section,Line,Category,Joining Date,Gross Salary,Age,Over Time,Transport,Transport Stand");
+
+            foreach (var e in SortedFilteredEmployees)
+            {
+                sb.AppendLine($"\"{e.EmployeeCode}\",\"{e.EmployeeName}\",\"{e.DesignationName}\",\"{e.DepartmentName}\",\"{e.SectionName}\",\"{e.LineName}\",\"{e.CategoryName}\",\"{e.DateOfJoining:dd-MMM-yyyy}\",{e.Gross},{e.Age},\"{e.OverTime}\",\"{e.Transport}\",\"{e.TransportStand}\"");
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = $"Employee_Status_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", filename, "text/csv;charset=utf-8;", base64);
+            ShowToast("CSV exported successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Export failed: " + ex.Message, isError: true);
+        }
+    }
+
+    private void ShowToast(string msg, bool isError = false)
+    {
+        toastMessage = msg;
+        toastIsError = isError;
+        StateHasChanged();
+        _ = Task.Delay(3500).ContinueWith(_ =>
+        {
+            toastMessage = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+}

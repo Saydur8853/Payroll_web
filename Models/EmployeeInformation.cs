@@ -138,3 +138,42 @@ public sealed class CharacterCertificateItem
     public string Rating { get; set; } = string.Empty;
     public string Remarks { get; set; } = string.Empty;
 }
+
+public sealed class EmployeeStatusFilter
+{
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public int? UnitId { get; set; }
+    public int? CategoryId { get; set; }
+    public int? DepartmentId { get; set; }
+    public int? SectionId { get; set; }
+    public int? LineId { get; set; }
+    public int? DesignationId { get; set; }
+    public string? SearchQuery { get; set; }
+}
+
+public sealed class EmployeeStatusItem
+{
+    public int EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string DesignationName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public string SectionName { get; set; } = string.Empty;
+    public string LineName { get; set; } = string.Empty;
+    public string CategoryName { get; set; } = string.Empty;
+    public DateTime? DateOfJoining { get; set; }
+    public decimal Gross { get; set; }
+    public int Age { get; set; }
+    public string OverTime { get; set; } = "N";
+    public string Transport { get; set; } = "N";
+    public string TransportStand { get; set; } = string.Empty;
+
+    // Change Tracking
+    public bool IsEdited { get; set; }
+    public decimal OriginalGross { get; set; }
+    public string OriginalOverTime { get; set; } = "N";
+    public string OriginalTransport { get; set; } = "N";
+    public DateTime? OriginalDateOfJoining { get; set; }
+    public string OriginalTransportStand { get; set; } = string.Empty;
+}

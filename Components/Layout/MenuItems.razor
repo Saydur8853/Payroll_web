@@ -52,6 +52,22 @@
                 <span class="menu-text">@item.Name</span>
             </NavLink>
         }
+        else if (IsEmployeeStatusItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeStatus" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
         else if (IsEmployeeItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/EmployeeInformation" Match="NavLinkMatch.Prefix" title="@item.Name">
@@ -184,6 +200,15 @@
     private static bool IsDashboardItem(string name, int id)
     {
         return id == 184 || name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsEmployeeStatusItem(string name)
+    {
+        return name.Equals("Employee Status", StringComparison.OrdinalIgnoreCase) 
+            || name.Equals("Employee_Status", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp Status", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp_Status", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Workforce Status", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsEmployeeItem(string name)

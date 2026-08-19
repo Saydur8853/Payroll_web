@@ -1,3 +1,4 @@
+using System.Text;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using TG.Payroll.Web.Models;
@@ -882,6 +883,176 @@ public sealed class EmployeeRepository
         catch
         {
             return null;
+        }
+    }
+
+    public async Task<List<EmployeeStatusItem>> GetEmployeeStatusListAsync(EmployeeStatusFilter filter, CancellationToken cancellationToken = default)
+    {
+        var sb = new StringBuilder(@"
+            SELECT A.EMP_ID, A.EMP_CODE, A.EMP_NAME, 
+                   NVL(C.DESIGNATION_NAME, '') DESIGNATION_NAME, 
+                   NVL(G.DEPARTMENT_NAME, '') DEPARTMENT_NAME,
+                   NVL(E.SECTION_NAME, '') SECTION_NAME,
+                   NVL(F.LINE_NAME, '') LINE_NAME,
+                   NVL(D.EMP_CATEGORY_NAME, '') EMP_CATEGORY_NAME,
+                   A.DATE_OF_JOINING, 
+                   NVL(A.GROSS, 0) GROSS, 
+                   NVL(EXTRACT(YEAR FROM sysdate) - EXTRACT(YEAR FROM B.DATE_OF_BIRTH), 0) AGE, 
+                   NVL(A.OVER_TIME, 'N') OVER_TIME, 
+                   NVL(A.TRANSPORT, 'N') TRANSPORT, 
+                   NVL(A.TRANSPORT_STAND, '') TRANSPORT_STAND
+            FROM EMP_OFFICIAL A, EMP_PERSONAL B, DESIGNATION C, EMP_CATEGORY D, SECTION E, LINE F, DEPARTMENT G
+            WHERE A.EMP_STATUS = 'Active' 
+              AND A.EMP_ID = B.EMP_ID(+) 
+              AND A.DESIGNATION_ID = C.DESIGNATION_ID(+)
+              AND A.EMP_CATEGORY_ID = D.EMP_CATEGORY_ID(+) 
+              AND A.SECTION_ID = E.SECTION_ID(+)
+              AND A.DEPARTMENT_ID = G.DEPARTMENT_ID(+) 
+              AND A.LINE_ID = F.LINE_ID(+)");
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        using var command = new OracleCommand { Connection = connection, BindByName = true };
+
+        if (filter.UnitId.HasValue && filter.UnitId.Value > 0)
+        {
+            sb.Append(" AND A.UNIT_ID = :unitId");
+            command.Parameters.Add(new OracleParameter("unitId", filter.UnitId.Value));
+        }
+
+        if (filter.CategoryId.HasValue && filter.CategoryId.Value > 0)
+        {
+            sb.Append(" AND A.EMP_CATEGORY_ID = :catId");
+            command.Parameters.Add(new OracleParameter("catId", filter.CategoryId.Value));
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId.Value > 0)
+        {
+            sb.Append(" AND A.DEPARTMENT_ID = :deptId");
+            command.Parameters.Add(new OracleParameter("deptId", filter.DepartmentId.Value));
+        }
+
+        if (filter.SectionId.HasValue && filter.SectionId.Value > 0)
+        {
+            sb.Append(" AND A.SECTION_ID = :secId");
+            command.Parameters.Add(new OracleParameter("secId", filter.SectionId.Value));
+        }
+
+        if (filter.LineId.HasValue && filter.LineId.Value > 0)
+        {
+            sb.Append(" AND A.LINE_ID = :lineId");
+            command.Parameters.Add(new OracleParameter("lineId", filter.LineId.Value));
+        }
+
+        if (filter.DesignationId.HasValue && filter.DesignationId.Value > 0)
+        {
+            sb.Append(" AND A.DESIGNATION_ID = :desigId");
+            command.Parameters.Add(new OracleParameter("desigId", filter.DesignationId.Value));
+        }
+
+        if (filter.FromDate.HasValue)
+        {
+            sb.Append(" AND A.DATE_OF_JOINING >= :fromDate");
+            command.Parameters.Add(new OracleParameter("fromDate", filter.FromDate.Value.Date));
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            sb.Append(" AND A.DATE_OF_JOINING <= :toDate");
+            command.Parameters.Add(new OracleParameter("toDate", filter.ToDate.Value.Date.AddDays(1).AddSeconds(-1)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchQuery))
+        {
+            sb.Append(" AND (UPPER(A.EMP_CODE) LIKE :search OR UPPER(A.EMP_NAME) LIKE :search)");
+            command.Parameters.Add(new OracleParameter("search", $"%{filter.SearchQuery.Trim().ToUpperInvariant()}%"));
+        }
+
+        sb.Append(" ORDER BY A.EMP_CODE");
+        command.CommandText = sb.ToString();
+
+        var list = new List<EmployeeStatusItem>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var gross = reader.IsDBNull(9) ? 0 : Convert.ToDecimal(reader.GetValue(9));
+            var ot = Text(reader, "OVER_TIME");
+            var tr = Text(reader, "TRANSPORT");
+            var doj = Date(reader, "DATE_OF_JOINING");
+            var stand = Text(reader, "TRANSPORT_STAND");
+
+            list.Add(new EmployeeStatusItem
+            {
+                EmployeeId = Int(reader, "EMP_ID"),
+                EmployeeCode = Text(reader, "EMP_CODE"),
+                EmployeeName = Text(reader, "EMP_NAME"),
+                DesignationName = Text(reader, "DESIGNATION_NAME"),
+                DepartmentName = Text(reader, "DEPARTMENT_NAME"),
+                SectionName = Text(reader, "SECTION_NAME"),
+                LineName = Text(reader, "LINE_NAME"),
+                CategoryName = Text(reader, "EMP_CATEGORY_NAME"),
+                DateOfJoining = doj,
+                Gross = gross,
+                Age = reader.IsDBNull(10) ? 0 : Convert.ToInt32(reader.GetValue(10)),
+                OverTime = string.IsNullOrEmpty(ot) ? "N" : ot,
+                Transport = string.IsNullOrEmpty(tr) ? "N" : tr,
+                TransportStand = stand,
+                OriginalGross = gross,
+                OriginalOverTime = string.IsNullOrEmpty(ot) ? "N" : ot,
+                OriginalTransport = string.IsNullOrEmpty(tr) ? "N" : tr,
+                OriginalDateOfJoining = doj,
+                OriginalTransportStand = stand,
+                IsEdited = false
+            });
+        }
+        return list;
+    }
+
+    public async Task<int> BulkUpdateEmployeeStatusAsync(IEnumerable<EmployeeStatusItem> items, int userId, CancellationToken cancellationToken = default)
+    {
+        var editedItems = items.Where(i => i.IsEdited).ToList();
+        if (editedItems.Count == 0) return 0;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var oracleTransaction = (OracleTransaction)transaction;
+
+        try
+        {
+            var updatedCount = 0;
+            foreach (var item in editedItems)
+            {
+                const string sql = @"
+                    UPDATE EMP_OFFICIAL 
+                    SET GROSS = :gross, 
+                        OVER_TIME = :overTime, 
+                        TRANSPORT = :transport, 
+                        DATE_OF_JOINING = :doj,
+                        TRANSPORT_STAND = :stand,
+                        USER_ID = :userId
+                    WHERE EMP_CODE = :empCode";
+
+                using var command = new OracleCommand(sql, connection) { Transaction = oracleTransaction, BindByName = true };
+                command.Parameters.Add(new OracleParameter("gross", item.Gross));
+                command.Parameters.Add(new OracleParameter("overTime", item.OverTime));
+                command.Parameters.Add(new OracleParameter("transport", item.Transport));
+                command.Parameters.Add(new OracleParameter("doj", item.DateOfJoining ?? DateTime.Today));
+                command.Parameters.Add(new OracleParameter("stand", item.TransportStand ?? string.Empty));
+                command.Parameters.Add(new OracleParameter("userId", userId));
+                command.Parameters.Add(new OracleParameter("empCode", item.EmployeeCode.Trim()));
+
+                updatedCount += await command.ExecuteNonQueryAsync(cancellationToken);
+                await LogActionAsync(connection, oracleTransaction, item.EmployeeCode, $"BULK_STATUS_UPDATE: Gross={item.Gross}, OT={item.OverTime}, TR={item.Transport}, Stand={item.TransportStand}", userId, cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return updatedCount;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
         }
     }
 }

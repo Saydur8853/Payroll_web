@@ -36,12 +36,28 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50LnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/CompanyManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb21wYW55TWFuYWdlbWVudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/ContactInfo.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb250YWN0SW5mby5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/Dashboard.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEYXNoYm9hcmQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/EmployeeDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFbXBsb3llZURldGFpbHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/EmployeeInformation.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFbXBsb3llZUluZm9ybWF0aW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/EmployeeOperations.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFbXBsb3llZU9wZXJhdGlvbnMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/EmployeeStatus.razor]
@@ -50,6 +66,14 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/LookupSelect.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMb29rdXBTZWxlY3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/MasterSetup.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xNYXN0ZXJTZXR1cC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/SetPriority.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTZXRQcmlvcml0eS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/TG-ict/Desktop/TG-payroll/Components/Pages/UserManagement.razor]

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 using TG.Payroll.Web.Data;
 using TG.Payroll.Web.Models;
 
@@ -328,30 +329,168 @@ public sealed class PayrollRepository
 
     public async Task<List<CompanyItem>> GetCompaniesAsync(CancellationToken cancellationToken = default)
     {
-        const string sql = "SELECT COMPANY_ID, NVL(COMPANY_NAME, 'Unnamed Company'), NVL(ADDRESS, ''), NVL(REMARKS, ''), NVL(COMPANY_LOGO_PATH, '') FROM COMPANY ORDER BY COMPANY_ID";
         await using var connection = new OracleConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
+
+        // Discover columns in COMPANY table first safely from user schema
+        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? blobColName = null;
+        try
+        {
+            await using var colCmd = new OracleCommand("SELECT COLUMN_NAME, DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'COMPANY'", connection);
+            await using var colReader = await colCmd.ExecuteReaderAsync(cancellationToken);
+            while (await colReader.ReadAsync(cancellationToken))
+            {
+                var colName = colReader.GetString(0);
+                var dataType = colReader.GetString(1);
+                cols.Add(colName);
+                if (dataType.Contains("BLOB", StringComparison.OrdinalIgnoreCase) || dataType.Contains("RAW", StringComparison.OrdinalIgnoreCase))
+                {
+                    blobColName = colName;
+                }
+            }
+        }
+        catch { }
+
+        // Select only text/numeric columns to prevent Oracle TTC Exception on inline BLOB fetch
+        var selectParts = new List<string> { "COMPANY_ID", "NVL(COMPANY_NAME, '') AS COMPANY_NAME" };
+        if (cols.Contains("SHORT_NAME")) selectParts.Add("NVL(SHORT_NAME, '') AS SHORT_NAME");
+        if (cols.Contains("ADDRESS")) selectParts.Add("NVL(ADDRESS, '') AS ADDRESS");
+        if (cols.Contains("REMARKS")) selectParts.Add("NVL(REMARKS, '') AS REMARKS");
+        if (cols.Contains("COMPANY_NAME_BANG")) selectParts.Add("NVL(COMPANY_NAME_BANG, '') AS COMPANY_NAME_BANG");
+        else if (cols.Contains("BANG_COMPANY_NAME")) selectParts.Add("NVL(BANG_COMPANY_NAME, '') AS COMPANY_NAME_BANG");
+        if (cols.Contains("ADDRESS_BANG")) selectParts.Add("NVL(ADDRESS_BANG, '') AS ADDRESS_BANG");
+        else if (cols.Contains("BANG_COMPANY_ADDRESS")) selectParts.Add("NVL(BANG_COMPANY_ADDRESS, '') AS ADDRESS_BANG");
+        if (cols.Contains("COMPANY_LOGO_PATH") && !string.Equals(blobColName, "COMPANY_LOGO_PATH", StringComparison.OrdinalIgnoreCase))
+        {
+            selectParts.Add("NVL(COMPANY_LOGO_PATH, '') AS COMPANY_LOGO_PATH");
+        }
+
+        var sql = $"SELECT {string.Join(", ", selectParts)} FROM COMPANY ORDER BY COMPANY_ID";
         await using var command = new OracleCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        
         var list = new List<CompanyItem>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            list.Add(new CompanyItem
+            string GetVal(string col)
             {
-                CompanyId = Convert.ToInt32(reader.GetValue(0)),
-                CompanyName = Convert.ToString(reader.GetValue(1)) ?? string.Empty,
-                Address = Convert.ToString(reader.GetValue(2)) ?? string.Empty,
-                Remarks = Convert.ToString(reader.GetValue(3)) ?? string.Empty,
-                CompanyLogoPath = Convert.ToString(reader.GetValue(4)) ?? string.Empty
-            });
+                try
+                {
+                    var ord = reader.GetOrdinal(col);
+                    return reader.IsDBNull(ord) ? string.Empty : Convert.ToString(reader[ord]) ?? string.Empty;
+                }
+                catch { return string.Empty; }
+            }
+
+            var item = new CompanyItem
+            {
+                CompanyId = Convert.ToInt32(reader["COMPANY_ID"]),
+                CompanyName = GetVal("COMPANY_NAME"),
+                CompanyNameBang = EmployeeCsvHelper.EnsureUnicode(GetVal("COMPANY_NAME_BANG")),
+                ShortName = GetVal("SHORT_NAME"),
+                Address = GetVal("ADDRESS"),
+                AddressBang = EmployeeCsvHelper.EnsureUnicode(GetVal("ADDRESS_BANG")),
+                Remarks = GetVal("REMARKS"),
+                CompanyLogoPath = GetVal("COMPANY_LOGO_PATH")
+            };
+            list.Add(item);
         }
+        await reader.DisposeAsync();
+
+        // Read BLOB logo data safely using chunked DBMS_LOB reader
+        var targetBlobCol = blobColName ?? (cols.Contains("COMPANY_LOGO") ? "COMPANY_LOGO" : (cols.Contains("LOGO") ? "LOGO" : null));
+        if (!string.IsNullOrEmpty(targetBlobCol))
+        {
+            foreach (var item in list)
+            {
+                item.CompanyLogo = ReadCompanyBlob(connection, "COMPANY", targetBlobCol, item.CompanyId);
+            }
+        }
+
         return list;
     }
 
-    public async Task<int> CreateCompanyAsync(string companyName, string address, string remarks, string logoPath, CancellationToken cancellationToken = default)
+    private static byte[]? ReadCompanyBlob(OracleConnection connection, string table, string column, int companyId)
+    {
+        try
+        {
+            using var lengthCommand = new OracleCommand($"SELECT NVL(DBMS_LOB.GETLENGTH({column}), 0) FROM {table} WHERE COMPANY_ID = :companyId", connection) { BindByName = true };
+            lengthCommand.Parameters.Add(new OracleParameter("companyId", OracleDbType.Decimal) { Value = companyId });
+            var totalLength = Convert.ToInt32(lengthCommand.ExecuteScalar() ?? 0);
+            if (totalLength <= 0) return null;
+
+            const int chunkSize = 2000;
+            using var output = new MemoryStream(totalLength);
+            for (var offset = 1; offset <= totalLength; offset += chunkSize)
+            {
+                using var chunkCommand = new OracleCommand($"SELECT DBMS_LOB.SUBSTR({column}, :amount, :offset) FROM {table} WHERE COMPANY_ID = :companyId", connection) { BindByName = true };
+                chunkCommand.Parameters.Add(new OracleParameter("amount", OracleDbType.Int32) { Value = chunkSize });
+                chunkCommand.Parameters.Add(new OracleParameter("offset", OracleDbType.Int32) { Value = offset });
+                chunkCommand.Parameters.Add(new OracleParameter("companyId", OracleDbType.Decimal) { Value = companyId });
+                var value = chunkCommand.ExecuteScalar();
+                if (value is byte[] bytes) output.Write(bytes, 0, bytes.Length);
+                else if (value is OracleBinary binary && !binary.IsNull) output.Write(binary.Value, 0, binary.Value.Length);
+                else break;
+            }
+            return output.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task EnsureCompanySchemaAsync(OracleConnection connection, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var cmd = new OracleCommand("ALTER TABLE COMPANY MODIFY COMPANY_NAME VARCHAR2(150)", connection);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+
+        try
+        {
+            using var cmd = new OracleCommand("ALTER TABLE COMPANY MODIFY SHORT_NAME VARCHAR2(50)", connection);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+
+        try
+        {
+            using var cmd = new OracleCommand("ALTER TABLE COMPANY MODIFY ADDRESS VARCHAR2(250)", connection);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+
+        try
+        {
+            using var cmd = new OracleCommand("ALTER TABLE COMPANY MODIFY REMARKS VARCHAR2(250)", connection);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+
+        try
+        {
+            using var cmd = new OracleCommand("ALTER TABLE COMPANY MODIFY COMPANY_NAME_BANG NVARCHAR2(200)", connection);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+
+        try
+        {
+            using var cmd = new OracleCommand("ALTER TABLE COMPANY MODIFY ADDRESS_BANG NVARCHAR2(250)", connection);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+    }
+
+    public async Task<int> CreateCompanyAsync(string companyName, string companyNameBang, string shortName, string address, string addressBang, string remarks, string logoPath, byte[]? logoBytes = null, CancellationToken cancellationToken = default)
     {
         await using var connection = new OracleConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
+        await EnsureCompanySchemaAsync(connection, cancellationToken);
 
         const string nextIdSql = "SELECT NVL(MAX(COMPANY_ID), 0) + 1 FROM COMPANY";
         int newId;
@@ -361,39 +500,157 @@ public sealed class PayrollRepository
             newId = Convert.ToInt32(scalar);
         }
 
-        const string insertSql = """
-            INSERT INTO COMPANY (COMPANY_ID, COMPANY_NAME, ADDRESS, REMARKS, COMPANY_LOGO_PATH)
-            VALUES (:companyId, :companyName, :address, :remarks, :logoPath)
-            """;
+        bool hasShortNameCol = false;
+        string? bangNameCol = null;
+        string? bangAddrCol = null;
+        string? blobColName = null;
+        try
+        {
+            await using var chkCmd = new OracleCommand("SELECT COLUMN_NAME, DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'COMPANY'", connection);
+            await using var rdr = await chkCmd.ExecuteReaderAsync(cancellationToken);
+            while (await rdr.ReadAsync(cancellationToken))
+            {
+                var c = rdr.GetString(0);
+                var dt = rdr.GetString(1);
+                if (c.Equals("SHORT_NAME", StringComparison.OrdinalIgnoreCase)) hasShortNameCol = true;
+                if (c.Equals("COMPANY_NAME_BANG", StringComparison.OrdinalIgnoreCase)) bangNameCol = "COMPANY_NAME_BANG";
+                else if (c.Equals("BANG_COMPANY_NAME", StringComparison.OrdinalIgnoreCase) && bangNameCol == null) bangNameCol = "BANG_COMPANY_NAME";
+                if (c.Equals("ADDRESS_BANG", StringComparison.OrdinalIgnoreCase)) bangAddrCol = "ADDRESS_BANG";
+                else if (c.Equals("BANG_COMPANY_ADDRESS", StringComparison.OrdinalIgnoreCase) && bangAddrCol == null) bangAddrCol = "BANG_COMPANY_ADDRESS";
+                if (dt.Contains("BLOB", StringComparison.OrdinalIgnoreCase) || dt.Contains("RAW", StringComparison.OrdinalIgnoreCase)) blobColName = c;
+            }
+        }
+        catch { }
+
+        var insertCols = new List<string> { "COMPANY_ID", "COMPANY_NAME", "ADDRESS", "REMARKS" };
+        var insertVals = new List<string> { ":companyId", ":companyName", ":address", ":remarks" };
+
+        if (hasShortNameCol)
+        {
+            insertCols.Add("SHORT_NAME");
+            insertVals.Add(":shortName");
+        }
+        if (!string.IsNullOrEmpty(bangNameCol))
+        {
+            insertCols.Add(bangNameCol);
+            insertVals.Add(":companyNameBang");
+        }
+        if (!string.IsNullOrEmpty(bangAddrCol))
+        {
+            insertCols.Add(bangAddrCol);
+            insertVals.Add(":addressBang");
+        }
+        if (!string.IsNullOrEmpty(blobColName))
+        {
+            insertCols.Add(blobColName);
+            insertVals.Add(":logoBlob");
+        }
+        else
+        {
+            insertCols.Add("COMPANY_LOGO_PATH");
+            insertVals.Add(":logoPath");
+        }
+
+        var insertSql = $"INSERT INTO COMPANY ({string.Join(", ", insertCols)}) VALUES ({string.Join(", ", insertVals)})";
+
         await using var insertCommand = new OracleCommand(insertSql, connection) { BindByName = true };
         insertCommand.Parameters.Add(new OracleParameter("companyId", newId));
         insertCommand.Parameters.Add(new OracleParameter("companyName", companyName.Trim()));
+        if (hasShortNameCol)
+        {
+            insertCommand.Parameters.Add(new OracleParameter("shortName", string.IsNullOrWhiteSpace(shortName) ? DBNull.Value : shortName.Trim()));
+        }
         insertCommand.Parameters.Add(new OracleParameter("address", string.IsNullOrWhiteSpace(address) ? DBNull.Value : address.Trim()));
         insertCommand.Parameters.Add(new OracleParameter("remarks", string.IsNullOrWhiteSpace(remarks) ? DBNull.Value : remarks.Trim()));
-        insertCommand.Parameters.Add(new OracleParameter("logoPath", string.IsNullOrWhiteSpace(logoPath) ? DBNull.Value : logoPath.Trim()));
-        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+        if (!string.IsNullOrEmpty(bangNameCol))
+        {
+            insertCommand.Parameters.Add(new OracleParameter("companyNameBang", OracleDbType.NVarchar2) { Value = string.IsNullOrWhiteSpace(companyNameBang) ? (object)DBNull.Value : companyNameBang.Trim() });
+        }
+        if (!string.IsNullOrEmpty(bangAddrCol))
+        {
+            insertCommand.Parameters.Add(new OracleParameter("addressBang", OracleDbType.NVarchar2) { Value = string.IsNullOrWhiteSpace(addressBang) ? (object)DBNull.Value : addressBang.Trim() });
+        }
+        if (!string.IsNullOrEmpty(blobColName))
+        {
+            insertCommand.Parameters.Add(new OracleParameter("logoBlob", OracleDbType.Blob) { Value = logoBytes ?? (object)DBNull.Value });
+        }
+        else
+        {
+            insertCommand.Parameters.Add(new OracleParameter("logoPath", string.IsNullOrWhiteSpace(logoPath) ? DBNull.Value : logoPath.Trim()));
+        }
 
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
         return newId;
     }
 
-    public async Task UpdateCompanyAsync(int companyId, string companyName, string address, string remarks, string logoPath, CancellationToken cancellationToken = default)
+    public async Task UpdateCompanyAsync(int companyId, string companyName, string companyNameBang, string shortName, string address, string addressBang, string remarks, string logoPath, byte[]? logoBytes = null, CancellationToken cancellationToken = default)
     {
         await using var connection = new OracleConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
+        await EnsureCompanySchemaAsync(connection, cancellationToken);
 
-        const string updateSql = """
-            UPDATE COMPANY
-            SET COMPANY_NAME = :companyName,
-                ADDRESS = :address,
-                REMARKS = :remarks,
-                COMPANY_LOGO_PATH = :logoPath
-            WHERE COMPANY_ID = :companyId
-            """;
+        bool hasShortNameCol = false;
+        string? bangNameCol = null;
+        string? bangAddrCol = null;
+        string? blobColName = null;
+        try
+        {
+            await using var chkCmd = new OracleCommand("SELECT COLUMN_NAME, DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'COMPANY'", connection);
+            await using var rdr = await chkCmd.ExecuteReaderAsync(cancellationToken);
+            while (await rdr.ReadAsync(cancellationToken))
+            {
+                var c = rdr.GetString(0);
+                var dt = rdr.GetString(1);
+                if (c.Equals("SHORT_NAME", StringComparison.OrdinalIgnoreCase)) hasShortNameCol = true;
+                if (c.Equals("COMPANY_NAME_BANG", StringComparison.OrdinalIgnoreCase)) bangNameCol = "COMPANY_NAME_BANG";
+                else if (c.Equals("BANG_COMPANY_NAME", StringComparison.OrdinalIgnoreCase) && bangNameCol == null) bangNameCol = "BANG_COMPANY_NAME";
+                if (c.Equals("ADDRESS_BANG", StringComparison.OrdinalIgnoreCase)) bangAddrCol = "ADDRESS_BANG";
+                else if (c.Equals("BANG_COMPANY_ADDRESS", StringComparison.OrdinalIgnoreCase) && bangAddrCol == null) bangAddrCol = "BANG_COMPANY_ADDRESS";
+                if (dt.Contains("BLOB", StringComparison.OrdinalIgnoreCase) || dt.Contains("RAW", StringComparison.OrdinalIgnoreCase)) blobColName = c;
+            }
+        }
+        catch { }
+
+        var setParts = new List<string> { "COMPANY_NAME = :companyName", "ADDRESS = :address", "REMARKS = :remarks" };
+        if (hasShortNameCol) setParts.Add("SHORT_NAME = :shortName");
+        if (!string.IsNullOrEmpty(bangNameCol)) setParts.Add($"{bangNameCol} = :companyNameBang");
+        if (!string.IsNullOrEmpty(bangAddrCol)) setParts.Add($"{bangAddrCol} = :addressBang");
+
+        if (!string.IsNullOrEmpty(blobColName))
+        {
+            setParts.Add($"{blobColName} = :logoBlob");
+        }
+        else
+        {
+            setParts.Add("COMPANY_LOGO_PATH = :logoPath");
+        }
+
+        var updateSql = $"UPDATE COMPANY SET {string.Join(", ", setParts)} WHERE COMPANY_ID = :companyId";
+
         await using var updateCommand = new OracleCommand(updateSql, connection) { BindByName = true };
         updateCommand.Parameters.Add(new OracleParameter("companyName", companyName.Trim()));
+        if (hasShortNameCol)
+        {
+            updateCommand.Parameters.Add(new OracleParameter("shortName", string.IsNullOrWhiteSpace(shortName) ? DBNull.Value : shortName.Trim()));
+        }
         updateCommand.Parameters.Add(new OracleParameter("address", string.IsNullOrWhiteSpace(address) ? DBNull.Value : address.Trim()));
         updateCommand.Parameters.Add(new OracleParameter("remarks", string.IsNullOrWhiteSpace(remarks) ? DBNull.Value : remarks.Trim()));
-        updateCommand.Parameters.Add(new OracleParameter("logoPath", string.IsNullOrWhiteSpace(logoPath) ? DBNull.Value : logoPath.Trim()));
+        if (!string.IsNullOrEmpty(bangNameCol))
+        {
+            updateCommand.Parameters.Add(new OracleParameter("companyNameBang", OracleDbType.NVarchar2) { Value = string.IsNullOrWhiteSpace(companyNameBang) ? (object)DBNull.Value : companyNameBang.Trim() });
+        }
+        if (!string.IsNullOrEmpty(bangAddrCol))
+        {
+            updateCommand.Parameters.Add(new OracleParameter("addressBang", OracleDbType.NVarchar2) { Value = string.IsNullOrWhiteSpace(addressBang) ? (object)DBNull.Value : addressBang.Trim() });
+        }
+        if (!string.IsNullOrEmpty(blobColName))
+        {
+            updateCommand.Parameters.Add(new OracleParameter("logoBlob", OracleDbType.Blob) { Value = (logoBytes is not null && logoBytes.Length > 0) ? logoBytes : (object)DBNull.Value });
+        }
+        else
+        {
+            updateCommand.Parameters.Add(new OracleParameter("logoPath", string.IsNullOrWhiteSpace(logoPath) ? DBNull.Value : logoPath.Trim()));
+        }
         updateCommand.Parameters.Add(new OracleParameter("companyId", companyId));
         await updateCommand.ExecuteNonQueryAsync(cancellationToken);
     }

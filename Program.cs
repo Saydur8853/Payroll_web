@@ -21,6 +21,7 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddScoped<PayrollRepository>();
 builder.Services.AddScoped<EmployeeRepository>();
+builder.Services.AddScoped<MasterRepository>();
 builder.Services.AddScoped<EmployeeSchemaMigration>();
 
 var app = builder.Build();
@@ -33,6 +34,9 @@ if (args.Contains("--check-db", StringComparer.OrdinalIgnoreCase))
     Console.WriteLine("Oracle database connection succeeded.");
     return;
 }
+
+
+
 
 if (args.Contains("--check-dashboard", StringComparer.OrdinalIgnoreCase))
 {
@@ -60,21 +64,38 @@ if (args.Contains("--check-employees", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-if (args.Contains("--apply-employee-concurrency", StringComparer.OrdinalIgnoreCase))
+
+
+if (args.Contains("--check-schema", StringComparer.OrdinalIgnoreCase))
 {
     await using var scope = app.Services.CreateAsyncScope();
-    var migration = scope.ServiceProvider.GetRequiredService<EmployeeSchemaMigration>();
-    await migration.ApplyEmployeeConcurrencyAsync();
-    Console.WriteLine("Employee code concurrency safeguards applied.");
+    var db = scope.ServiceProvider.GetRequiredService<PayrollDbContext>();
+    var conn = db.Database.GetDbConnection();
+    await conn.OpenAsync();
+
+    Console.WriteLine("=== Columns matching %PRIOR% ===");
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM USER_TAB_COLUMNS WHERE COLUMN_NAME LIKE '%PRIOR%' ORDER BY TABLE_NAME";
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            Console.WriteLine($"{reader[0]}.{reader[1]} ({reader[2]})");
+        }
+    }
+
+    Console.WriteLine("\n=== Columns matching %CONTACT% or %CELL% or %PHONE% ===");
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM USER_TAB_COLUMNS WHERE COLUMN_NAME LIKE '%CONTACT%' OR COLUMN_NAME LIKE '%CELL%' OR COLUMN_NAME LIKE '%PHONE%' ORDER BY TABLE_NAME";
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            Console.WriteLine($"{reader[0]}.{reader[1]} ({reader[2]})");
+        }
+    }
     return;
 }
-
-
-
-
-
-
-
 
 if (!app.Environment.IsDevelopment())
 {
@@ -91,6 +112,35 @@ app.MapPost("/logout", (HttpContext context) =>
     context.Session.Clear();
     return Results.Redirect("/");
 });
+app.MapGet("/api/company/logo/{id:int}", async (int id, PayrollRepository repo, CancellationToken ct) =>
+{
+    try
+    {
+        var companies = await repo.GetCompaniesAsync(ct);
+        var comp = companies.FirstOrDefault(c => c.CompanyId == id);
+        if (comp is null) return Results.NotFound();
+
+        if (comp.CompanyLogo is not null && comp.CompanyLogo.Length > 0)
+        {
+            var mime = comp.CompanyLogo.Length > 3 && comp.CompanyLogo[0] == 0x89 && comp.CompanyLogo[1] == 0x50 && comp.CompanyLogo[2] == 0x4E && comp.CompanyLogo[3] == 0x47
+                ? "image/png"
+                : (comp.CompanyLogo.Length > 2 && comp.CompanyLogo[0] == 0xFF && comp.CompanyLogo[1] == 0xD8 && comp.CompanyLogo[2] == 0xFF ? "image/jpeg" : "image/png");
+            return Results.File(comp.CompanyLogo, mime);
+        }
+
+        if (!string.IsNullOrWhiteSpace(comp.CompanyLogoPath) && File.Exists(comp.CompanyLogoPath))
+        {
+            var bytes = await File.ReadAllBytesAsync(comp.CompanyLogoPath, ct);
+            var ext = Path.GetExtension(comp.CompanyLogoPath).ToLowerInvariant();
+            var mime = ext switch { ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".svg" => "image/svg+xml", ".gif" => "image/gif", _ => "image/png" };
+            return Results.File(bytes, mime);
+        }
+    }
+    catch { }
+
+    return Results.NotFound();
+});
+
 app.MapRazorPages();
 app.MapRazorComponents<TG.Payroll.Web.Components.App>()
     .AddInteractiveServerRenderMode();

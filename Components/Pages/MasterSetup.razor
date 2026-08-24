@@ -1,0 +1,1546 @@
+@page "/MasterSetup"
+@page "/Master"
+@page "/Master/{TabName}"
+@page "/Designation"
+@page "/ShiftInfo"
+@page "/Holiday"
+@page "/UnitSetup"
+@page "/Department"
+@page "/EmployeeCategory"
+@page "/Section"
+@page "/LineInfo"
+@page "/TransportStand"
+@page "/SalaryRule"
+@page "/SigningOption"
+@page "/Dormitory"
+@using System.Web
+@inject IHttpContextAccessor HttpContextAccessor
+@inject MasterRepository MasterRepository
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+@inject ILogger<MasterSetup> Logger
+
+<PageTitle>Master Data Management - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="skeleton-shell">
+        <div class="skeleton-header-card">
+            <div class="skeleton-box" style="width:180px;height:12px;"></div>
+            <div class="skeleton-box" style="width:320px;height:32px;border-radius:8px;"></div>
+            <div class="skeleton-box" style="width:520px;height:14px;"></div>
+        </div>
+
+        <div class="skeleton-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="skeleton-box" style="width:220px;height:22px;"></div>
+                <div class="skeleton-box" style="width:100px;height:14px;"></div>
+            </div>
+            <div class="skeleton-grid">
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:120px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:100px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:90px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:110px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+                <div class="skeleton-box" style="width:80px;height:38px;border-radius:8px;"></div>
+                <div class="skeleton-box" style="width:140px;height:38px;border-radius:8px;"></div>
+            </div>
+        </div>
+
+        <div class="skeleton-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div class="skeleton-box" style="width:200px;height:20px;"></div>
+                <div class="skeleton-box" style="width:220px;height:36px;border-radius:8px;"></div>
+            </div>
+            <div class="skeleton-table-wrap">
+                <table class="skeleton-table">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;"><div class="skeleton-box" style="width:40px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:150px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:100px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:100px;height:12px;"></div></th>
+                            <th style="width:120px;"><div class="skeleton-box" style="width:80px;height:12px;"></div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < 5; i++)
+                        {
+                            <tr>
+                                <td><div class="skeleton-box" style="width:36px;height:18px;border-radius:12px;"></div></td>
+                                <td>
+                                    <div class="skeleton-box" style="width:180px;height:14px;display:block;margin-bottom:4px;"></div>
+                                    <div class="skeleton-box" style="width:110px;height:11px;"></div>
+                                </td>
+                                <td><div class="skeleton-box" style="width:80px;height:18px;border-radius:12px;"></div></td>
+                                <td><div class="skeleton-box" style="width:90px;height:14px;"></div></td>
+                                <td>
+                                    <div style="display:flex;gap:6px;">
+                                        <div class="skeleton-box" style="width:40px;height:24px;border-radius:6px;"></div>
+                                        <div class="skeleton-box" style="width:45px;height:24px;border-radius:6px;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to view Master Data Setup.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">MASTER CONFIGURATION</p>
+            <h1>@GetHeaderTitle()</h1>
+            <p>@GetHeaderSubtitle()</p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="database-error management-message">@errorMessage</div>
+    }
+
+    @if (showConfirmModal)
+    {
+        <div class="modal-backdrop-overlay" @onclick="CancelDelete">
+            <div class="confirm-delete-modal" @onclick:stopPropagation>
+                <div class="confirm-modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3>Are you sure?</h3>
+                <p>Do you really want to delete <strong>@confirmItemTitle</strong> (@confirmItemType)? This action cannot be undone.</p>
+                <div class="confirm-modal-actions">
+                    <button type="button" class="btn-cancel-modal" @onclick="CancelDelete">No, Cancel</button>
+                    <button type="button" class="btn-confirm-delete" @onclick="ExecuteConfirmedDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ==================== TAB 1: DESIGNATION ==================== -->
+    @if (activeTab == "designation")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editDesig.DesignationId > 0 ? $"Edit Designation (ID: #{editDesig.DesignationId})" : "Add New Designation")</h2>
+                    <p>Configure employee job titles, Bengali nomenclature, grades, and attendance bonuses.</p>
+                </div>
+                <form @onsubmit="SaveDesignation" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Designation Name (English) <strong class="req-star">*</strong></span>
+                            <input @bind="editDesig.DesignationName" placeholder="e.g. Senior Operator" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">পদবী (বাংলায়)</span>
+                            <input @bind="editDesig.DesignationNameBang" placeholder="যেমনঃ সিনিয়র অপারেটর" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Grade / গ্রেড</span>
+                            <input @bind="editDesig.Grade" placeholder="e.g. Grade-4" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Position / পদমর্যাদা</span>
+                            <input @bind="editDesig.Position" placeholder="e.g. Worker / Staff / Officer" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Position Priority</span>
+                            <input type="number" @bind="editDesig.PositionPriority" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Attendance Bonus (Tk)</span>
+                            <input type="number" step="0.01" @bind="editDesig.AttendanceBonus" class="company-form-input" />
+                        </label>
+                    </div>
+                    <label class="company-form-group" style="margin-top:12px;">
+                        <span class="company-form-label">Remarks</span>
+                        <input @bind="editDesig.Remarks" placeholder="Optional notes" class="company-form-input" />
+                    </label>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetDesigForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editDesig.DesignationId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editDesig.DesignationId > 0 ? "Update Designation" : "Save Designation")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Designations</h2>
+                        <p>Total @designations.Count designations in database.</p>
+                    </div>
+                    <div class="control-search-wrap">
+                        <input type="text" placeholder="Search designations..." @bind="searchQuery" @bind:event="oninput" />
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Designation Name</th>
+                                <th>Grade</th>
+                                <th>Position</th>
+                                <th>Priority</th>
+                                <th>Attn Bonus</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in FilteredDesignations)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@d.DesignationId</span></td>
+                                    <td>
+                                        <strong>@d.DesignationName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(d.DesignationNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@d.DesignationNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(d.Grade) ? "-" : d.Grade)</span></td>
+                                    <td>@(string.IsNullOrWhiteSpace(d.Position) ? "-" : d.Position)</td>
+                                    <td>@d.PositionPriority</td>
+                                    <td>@(d.AttendanceBonus > 0 ? $"{d.AttendanceBonus:N2} Tk" : "-")</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditDesignation(d)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Designation", d.DesignationName, () => DeleteDesignation(d.DesignationId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 2: SHIFT INFO ==================== -->
+    @if (activeTab == "shift")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editShift.ShiftId > 0 ? $"Edit Shift (ID: #{editShift.ShiftId})" : "Add New Shift")</h2>
+                    <p>Configure working shifts, in/out buffers, grace periods, and break timings.</p>
+                </div>
+                <form @onsubmit="SaveShift" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Shift Name <strong class="req-star">*</strong></span>
+                            <input @bind="editShift.ShiftName" placeholder="e.g. Day Shift" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">In Time (HH:mm AM/PM)</span>
+                            <input @bind="editShift.InTime" placeholder="08:00 AM" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Out Time (HH:mm AM/PM)</span>
+                            <input @bind="editShift.OutTime" placeholder="05:00 PM" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">In Time Buffer From</span>
+                            <input @bind="editShift.InTimeFrom" placeholder="07:00 AM" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Out Time Buffer From</span>
+                            <input @bind="editShift.OutTimeFrom" placeholder="04:30 PM" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Grace Period (Minutes)</span>
+                            <input @bind="editShift.Grace" placeholder="15" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Lunch Start</span>
+                            <input @bind="editShift.LunchStart" placeholder="01:00 PM" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Lunch End</span>
+                            <input @bind="editShift.LunchEnd" placeholder="02:00 PM" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Default Status</span>
+                            <select @bind="editShift.DefaultStatus" class="company-form-input">
+                                <option value="General">General</option>
+                                <option value="Night">Night</option>
+                                <option value="Roster">Roster</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetShiftForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editShift.ShiftId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editShift.ShiftId > 0 ? "Update Shift" : "Save Shift")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Shifts</h2>
+                        <p>Total @shifts.Count shift routines in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Shift Name</th>
+                                <th>Working Hours</th>
+                                <th>Punch Window</th>
+                                <th>Grace</th>
+                                <th>Lunch Break</th>
+                                <th>Status</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in shifts)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@s.ShiftId</span></td>
+                                    <td><strong>@s.ShiftName</strong></td>
+                                    <td><span class="type-pill">@s.InTime — @s.OutTime</span></td>
+                                    <td><small style="color:#64748b;">@s.InTimeFrom to @s.OutTimeFrom</small></td>
+                                    <td>@s.Grace min</td>
+                                    <td>@s.LunchStart - @s.LunchEnd</td>
+                                    <td><span class="type-pill">@s.DefaultStatus</span></td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditShift(s)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Shift", s.ShiftName, () => DeleteShift(s.ShiftId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 3: HOLIDAY ==================== -->
+    @if (activeTab == "holiday")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editHoliday.HolidayId > 0 ? $"Edit Holiday (ID: #{editHoliday.HolidayId})" : "Add Government / Factory Holiday")</h2>
+                    <p>Declare and schedule organizational holidays for payroll and attendance calculations.</p>
+                </div>
+                <form @onsubmit="SaveHoliday" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Holiday Date <strong class="req-star">*</strong></span>
+                            <input type="date" @bind="editHoliday.Date" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Holiday Type</span>
+                            <select @bind="editHoliday.Type" class="company-form-input">
+                                <option value="Holiday">Government Holiday</option>
+                                <option value="Festival">Festival Holiday</option>
+                                <option value="Special">Special Holiday</option>
+                                <option value="Weekend">Weekend Holiday</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Applicable Category</span>
+                            <select @bind="editHoliday.Category" class="company-form-input">
+                                <option value="All">All Categories</option>
+                                <option value="Staff">Staff</option>
+                                <option value="Worker">Worker</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Remarks / Description</span>
+                            <input @bind="editHoliday.Remarks" placeholder="e.g. Eid-ul-Fitr / Independence Day" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetHolidayForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editHoliday.HolidayId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editHoliday.HolidayId > 0 ? "Update Holiday" : "Save Holiday")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Holiday Calendar (@DateTime.Today.Year)</h2>
+                        <p>Total @holidays.Count holidays declared this year.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Type</th>
+                                <th>Category</th>
+                                <th>Description / Remarks</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var h in holidays)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@h.HolidayId</span></td>
+                                    <td><strong>@h.Date.ToString("dd-MMM-yyyy")</strong></td>
+                                    <td><span class="type-pill">@h.Date.ToString("dddd")</span></td>
+                                    <td>@h.Type</td>
+                                    <td><span class="type-pill">@h.Category</span></td>
+                                    <td>@(string.IsNullOrWhiteSpace(h.Remarks) ? "-" : h.Remarks)</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditHoliday(h)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Holiday", $"{h.Date:dd MMM yyyy} - {h.Type}", () => DeleteHoliday(h.HolidayId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 4: UNIT ==================== -->
+    @if (activeTab == "unit")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editUnit.UnitId > 0 ? $"Edit Unit (ID: #{editUnit.UnitId})" : "Add New Unit")</h2>
+                    <p>Configure operational business units, mills, factories, and branch addresses.</p>
+                </div>
+                <form @onsubmit="SaveUnit" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Unit Name (English) <strong class="req-star">*</strong></span>
+                            <input @bind="editUnit.UnitName" placeholder="e.g. Unit-1 Spinning" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">ইউনিটের নাম (বাংলায়)</span>
+                            <input @bind="editUnit.UnitNameBang" placeholder="যেমনঃ ইউনিট-১ স্পিনিং" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Short Name / Code</span>
+                            <input @bind="editUnit.ShortName" placeholder="e.g. U1" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Address</span>
+                            <input @bind="editUnit.Address" placeholder="e.g. Mirzapur, Gazipur" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetUnitForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editUnit.UnitId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editUnit.UnitId > 0 ? "Update Unit" : "Save Unit")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Units</h2>
+                        <p>Total @units.Count operational units in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Unit Name</th>
+                                <th>Short Code</th>
+                                <th>Company</th>
+                                <th>Address</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in units)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@u.UnitId</span></td>
+                                    <td>
+                                        <strong>@u.UnitName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(u.UnitNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@u.UnitNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(u.ShortName) ? "-" : u.ShortName)</span></td>
+                                    <td>@(string.IsNullOrWhiteSpace(u.CompanyName) ? "-" : u.CompanyName)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(u.Address) ? "-" : u.Address)</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditUnit(u)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Unit", u.UnitName, () => DeleteUnit(u.UnitId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 5: DEPARTMENT ==================== -->
+    @if (activeTab == "department")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editDept.DepartmentId > 0 ? $"Edit Department (ID: #{editDept.DepartmentId})" : "Add New Department")</h2>
+                    <p>Configure organizational divisions, departments, and priority ordering.</p>
+                </div>
+                <form @onsubmit="SaveDepartment" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department Name (English) <strong class="req-star">*</strong></span>
+                            <input @bind="editDept.DepartmentName" placeholder="e.g. Production / HR & Admin" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">ডিপার্টমেন্টের নাম (বাংলায়)</span>
+                            <input @bind="editDept.DepartmentNameBang" placeholder="যেমনঃ উৎপাদন / এইচআর ও প্রশাসন" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Parent Unit</span>
+                            <select @bind="editDept.UnitId" class="company-form-input">
+                                <option value="">-- Select Unit --</option>
+                                @foreach (var u in units)
+                                {
+                                    <option value="@u.UnitId">@u.UnitName</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Show Priority</span>
+                            <input type="number" @bind="editDept.ShowPriority" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetDeptForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editDept.DepartmentId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editDept.DepartmentId > 0 ? "Update Department" : "Save Department")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Departments</h2>
+                        <p>Total @departments.Count departments in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Department Name</th>
+                                <th>Unit</th>
+                                <th>Priority</th>
+                                <th>Remarks</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in departments)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@d.DepartmentId</span></td>
+                                    <td>
+                                        <strong>@d.DepartmentName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(d.DepartmentNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@d.DepartmentNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(d.UnitName) ? "-" : d.UnitName)</span></td>
+                                    <td>@d.ShowPriority</td>
+                                    <td>@(string.IsNullOrWhiteSpace(d.Remarks) ? "-" : d.Remarks)</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditDepartment(d)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Department", d.DepartmentName, () => DeleteDepartment(d.DepartmentId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 6: CATEGORY ==================== -->
+    @if (activeTab == "category")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editCat.CategoryId > 0 ? $"Edit Category (ID: #{editCat.CategoryId})" : "Add Employee Category")</h2>
+                    <p>Configure employment types (Staff, Worker, Contractual), position levels, and allowances.</p>
+                </div>
+                <form @onsubmit="SaveCategory" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Category Name <strong class="req-star">*</strong></span>
+                            <input @bind="editCat.CategoryName" placeholder="e.g. Worker / Staff" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">ক্যাটেগরি (বাংলায়)</span>
+                            <input @bind="editCat.CategoryNameBang" placeholder="যেমনঃ শ্রমিক / কর্মকর্তা" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Tiffin Allowance (Tk)</span>
+                            <input type="number" step="0.01" @bind="editCat.TiffinAllowance" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Position Level</span>
+                            <input type="number" @bind="editCat.PositionLevel" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetCatForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editCat.CategoryId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editCat.CategoryId > 0 ? "Update Category" : "Save Category")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Employee Categories</h2>
+                        <p>Total @categories.Count categories in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Category Name</th>
+                                <th>Tiffin Allowance</th>
+                                <th>Position Level</th>
+                                <th>Remarks</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in categories)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@c.CategoryId</span></td>
+                                    <td>
+                                        <strong>@c.CategoryName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(c.CategoryNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@c.CategoryNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td>@(c.TiffinAllowance > 0 ? $"{c.TiffinAllowance:N2} Tk" : "-")</td>
+                                    <td>@c.PositionLevel</td>
+                                    <td>@(string.IsNullOrWhiteSpace(c.Remarks) ? "-" : c.Remarks)</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditCategory(c)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Category", c.CategoryName, () => DeleteCategory(c.CategoryId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 7: SECTION ==================== -->
+    @if (activeTab == "section")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editSection.SectionId > 0 ? $"Edit Section (ID: #{editSection.SectionId})" : "Add New Section")</h2>
+                    <p>Configure operational factory sections (Sewing, Cutting, Finishing, Maintenance, etc.).</p>
+                </div>
+                <form @onsubmit="SaveSection" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Section Name (English) <strong class="req-star">*</strong></span>
+                            <input @bind="editSection.SectionName" placeholder="e.g. Sewing / Cutting" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">সেকশনের নাম (বাংলায়)</span>
+                            <input @bind="editSection.SectionNameBang" placeholder="যেমনঃ সুইং / কাটিং" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Unit</span>
+                            <select @bind="editSection.UnitId" class="company-form-input">
+                                <option value="">-- Select Unit --</option>
+                                @foreach (var u in units)
+                                {
+                                    <option value="@u.UnitId">@u.UnitName</option>
+                                }
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetSectionForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editSection.SectionId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editSection.SectionId > 0 ? "Update Section" : "Save Section")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Sections</h2>
+                        <p>Total @sections.Count sections in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Section Name</th>
+                                <th>Unit</th>
+                                <th>Remarks</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in sections)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@s.SectionId</span></td>
+                                    <td>
+                                        <strong>@s.SectionName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(s.SectionNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@s.SectionNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(s.UnitName) ? "-" : s.UnitName)</span></td>
+                                    <td>@(string.IsNullOrWhiteSpace(s.Remarks) ? "-" : s.Remarks)</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditSection(s)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Section", s.SectionName, () => DeleteSection(s.SectionId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 8: LINE ==================== -->
+    @if (activeTab == "line")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editLine.LineId > 0 ? $"Edit Line (ID: #{editLine.LineId})" : "Add New Line")</h2>
+                    <p>Configure production lines, floor locations, man-power capacities, and positions.</p>
+                </div>
+                <form @onsubmit="SaveLine" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Line Name (English) <strong class="req-star">*</strong></span>
+                            <input @bind="editLine.LineName" placeholder="e.g. Line-01" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">লাইনের নাম (বাংলায়)</span>
+                            <input @bind="editLine.LineNameBang" placeholder="যেমনঃ লাইন-০১" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Unit</span>
+                            <select @bind="editLine.UnitId" class="company-form-input">
+                                <option value="">-- Select Unit --</option>
+                                @foreach (var u in units)
+                                {
+                                    <option value="@u.UnitId">@u.UnitName</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Floor No</span>
+                            <input type="number" @bind="editLine.FloorNo" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Operator Count</span>
+                            <input type="number" @bind="editLine.OperatorCount" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Helper Count</span>
+                            <input type="number" @bind="editLine.HelperCount" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Ironman Count</span>
+                            <input type="number" @bind="editLine.IronmanCount" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetLineForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editLine.LineId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editLine.LineId > 0 ? "Update Line" : "Save Line")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Production Lines</h2>
+                        <p>Total @lines.Count lines registered in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Line Name</th>
+                                <th>Unit</th>
+                                <th>Floor</th>
+                                <th>Operators</th>
+                                <th>Helpers</th>
+                                <th>Ironmen</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in lines)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@l.LineId</span></td>
+                                    <td>
+                                        <strong>@l.LineName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(l.LineNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@l.LineNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(l.UnitName) ? "-" : l.UnitName)</span></td>
+                                    <td>Floor @l.FloorNo</td>
+                                    <td>@l.OperatorCount</td>
+                                    <td>@l.HelperCount</td>
+                                    <td>@l.IronmanCount</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditLine(l)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Line", l.LineName, () => DeleteLine(l.LineId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 9: TRANSPORT STAND ==================== -->
+    @if (activeTab == "transport")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editStand.StandId > 0 ? $"Edit Transport Stand (ID: #{editStand.StandId})" : "Add Transport Stand")</h2>
+                    <p>Configure employee pick-up and drop-off bus stop locations.</p>
+                </div>
+                <form @onsubmit="SaveStand" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Stand Name <strong class="req-star">*</strong></span>
+                            <input @bind="editStand.StandName" placeholder="e.g. Mirzapur Bus Stand / Gazipur Chowrasta" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Stand Form / Route</span>
+                            <input @bind="editStand.StandForm" placeholder="e.g. Route-1" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetStandForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editStand.StandId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editStand.StandId > 0 ? "Update Stand" : "Save Stand")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Transport Stands</h2>
+                        <p>Total @transportStands.Count transport stands in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Stand Name</th>
+                                <th>Route / Form</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var st in transportStands)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@st.StandId</span></td>
+                                    <td><strong>@st.StandName</strong></td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(st.StandForm) ? "-" : st.StandForm)</span></td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditStand(st)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Transport Stand", st.StandName, () => DeleteStand(st.StandId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 10: SALARY RULE ==================== -->
+    @if (activeTab == "salaryrule")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editSalaryRule.RuleId > 0 ? $"Edit Salary Rule (ID: #{editSalaryRule.RuleId})" : "Add Salary Rule Structure")</h2>
+                    <p>Configure gross salary breakdown formulas (Basic, House Rent, Medical, Food, Transport, and Attendance Bonuses).</p>
+                </div>
+                <form @onsubmit="SaveSalaryRule" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Rule Name <strong class="req-star">*</strong></span>
+                            <input @bind="editSalaryRule.RuleName" placeholder="e.g. Standard Worker 2024" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Basic Salary (% of Gross)</span>
+                            <input type="number" step="0.01" @bind="editSalaryRule.BasicPercent" placeholder="e.g. 50" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">House Rent (% of Basic)</span>
+                            <input type="number" step="0.01" @bind="editSalaryRule.HouseRentPercent" placeholder="e.g. 50" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Medical Allowance (Fixed Tk)</span>
+                            <input type="number" step="0.01" @bind="editSalaryRule.MedicalAllowance" placeholder="e.g. 750" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Food Allowance (Fixed Tk)</span>
+                            <input type="number" step="0.01" @bind="editSalaryRule.FoodAllowance" placeholder="e.g. 1250" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Transport Allowance (Tk)</span>
+                            <input type="number" step="0.01" @bind="editSalaryRule.TransportAllowance" placeholder="e.g. 450" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Attendance Bonus (Tk)</span>
+                            <input type="number" step="0.01" @bind="editSalaryRule.AttendanceBonus" placeholder="e.g. 500" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Status</span>
+                            <select @bind="editSalaryRule.Status" class="company-form-input">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetSalaryRuleForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editSalaryRule.RuleId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editSalaryRule.RuleId > 0 ? "Update Rule" : "Save Salary Rule")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Salary Rules</h2>
+                        <p>Total @salaryRules.Count salary structures in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Rule Name</th>
+                                <th>Basic %</th>
+                                <th>House Rent %</th>
+                                <th>Medical</th>
+                                <th>Food</th>
+                                <th>Transport</th>
+                                <th>Attn Bonus</th>
+                                <th>Status</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in salaryRules)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@r.RuleId</span></td>
+                                    <td><strong>@r.RuleName</strong></td>
+                                    <td>@r.BasicPercent %</td>
+                                    <td>@r.HouseRentPercent %</td>
+                                    <td>@r.MedicalAllowance Tk</td>
+                                    <td>@r.FoodAllowance Tk</td>
+                                    <td>@r.TransportAllowance Tk</td>
+                                    <td>@r.AttendanceBonus Tk</td>
+                                    <td><span class="type-pill">@r.Status</span></td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditSalaryRule(r)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Salary Rule", r.RuleName, () => DeleteSalaryRule(r.RuleId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 11: SIGNING OPTION ==================== -->
+    @if (activeTab == "signing")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editSigning.SigningId > 0 ? $"Edit Signing Option (ID: #{editSigning.SigningId})" : "Add Signing Authority Option")</h2>
+                    <p>Configure report and payslip authorization signers and designation sequence.</p>
+                </div>
+                <form @onsubmit="SaveSigningOption" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Signer Title / Name <strong class="req-star">*</strong></span>
+                            <input @bind="editSigning.SigningName" placeholder="e.g. Prepared By / Checked By / Authorized Signature" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Signing For (Report Scope)</span>
+                            <select @bind="editSigning.SigningFor" class="company-form-input">
+                                <option value="PAYSLIP">PAYSLIP</option>
+                                <option value="SALARY_REPORT">SALARY_REPORT</option>
+                                <option value="ATTENDANCE_REPORT">ATTENDANCE_REPORT</option>
+                                <option value="BONUS_SHEET">BONUS_SHEET</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Display Priority / Sequence</span>
+                            <input type="number" @bind="editSigning.SigningPriority" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Status</span>
+                            <select @bind="editSigning.SigningStatus" class="company-form-input">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetSigningForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editSigning.SigningId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editSigning.SigningId > 0 ? "Update Signer" : "Save Signer")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Signing Authorities</h2>
+                        <p>Total @signingOptions.Count signing options in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Signing Title</th>
+                                <th>Target Document</th>
+                                <th>Order Priority</th>
+                                <th>Status</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in signingOptions)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@s.SigningId</span></td>
+                                    <td><strong>@s.SigningName</strong></td>
+                                    <td><span class="type-pill">@s.SigningFor</span></td>
+                                    <td>@s.SigningPriority</td>
+                                    <td><span class="type-pill">@s.SigningStatus</span></td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditSigningOption(s)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Signing Option", s.SigningName, () => DeleteSigningOption(s.SigningId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== TAB 12: DORMITORY SETUP ==================== -->
+    @if (activeTab == "dormitory")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(editDormitory.DormitoryId > 0 ? $"Edit Dormitory (ID: #{editDormitory.DormitoryId})" : "Add New Dormitory")</h2>
+                    <p>Configure employee residential dormitories, quarters, halls, and room allocations.</p>
+                </div>
+                <form @onsubmit="SaveDormitory" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Dormitory Name (English) <strong class="req-star">*</strong></span>
+                            <input @bind="editDormitory.DormitoryName" placeholder="e.g. Dormitory-1 / Staff Quarter / Block-A" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">ডরমিটরির নাম (বাংলায়)</span>
+                            <input @bind="editDormitory.DormitoryNameBang" placeholder="যেমনঃ ডরমিটরি-১ / স্টাফ কোয়ার্টার / ব্লক-ক" class="company-form-input emp-bangla-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Attached Business Unit</span>
+                            <select @bind="editDormitory.UnitId" class="company-form-input">
+                                <option value="">-- Select Unit --</option>
+                                @foreach (var u in units)
+                                {
+                                    <option value="@u.UnitId">@u.UnitName</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Show Priority / Order</span>
+                            <input type="number" @bind="editDormitory.ShowTogether" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetDormitoryForm">Reset</button>
+                        <button type="submit" class="btn-primary-action @(editDormitory.DormitoryId > 0 ? "btn-update-mode" : "")">
+                            <span>@(editDormitory.DormitoryId > 0 ? "Update Dormitory" : "Save Dormitory")</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Registered Dormitories</h2>
+                        <p>Total @dormitories.Count dormitory records in database.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">ID</th>
+                                <th>Dormitory Name</th>
+                                <th>Unit</th>
+                                <th>Priority</th>
+                                <th style="width:110px;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in dormitories)
+                            {
+                                <tr>
+                                    <td><span class="id-badge">#@b.DormitoryId</span></td>
+                                    <td>
+                                        <strong>@b.DormitoryName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(b.DormitoryNameBang))
+                                        {
+                                            <div class="emp-bangla-text"><small>@b.DormitoryNameBang</small></div>
+                                        }
+                                    </td>
+                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(b.UnitName) ? "-" : b.UnitName)</span></td>
+                                    <td>@(b.ShowTogether ?? 1)</td>
+                                    <td style="text-align:center;">
+                                        <div class="table-action-group">
+                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditDormitory(b)">Edit</button>
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Dormitory", b.DormitoryName, () => DeleteDormitory(b.DormitoryId))'>Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? TabName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? QueryTab { get; set; }
+
+    private bool loaded;
+    private bool hasAccess;
+    private int currentUserId;
+    private bool currentUserIsAdmin;
+    private string activeTab = "designation";
+    private string searchQuery = string.Empty;
+    private string? successMessage;
+    private string? errorMessage;
+
+    // Master Data Collections
+    private List<DesignationItem> designations = [];
+    private List<ShiftInfoItem> shifts = [];
+    private List<HolidayItem> holidays = [];
+    private List<UnitItem> units = [];
+    private List<DepartmentItem> departments = [];
+    private List<CategoryItem> categories = [];
+    private List<SectionItem> sections = [];
+    private List<LineItem> lines = [];
+    private List<TransportStandItem> transportStands = [];
+    private List<SalaryRuleItem> salaryRules = [];
+    private List<SigningOptionItem> signingOptions = [];
+    private List<DormitoryItem> dormitories = [];
+
+    // Edit Item States
+    private DesignationItem editDesig = new();
+    private ShiftInfoItem editShift = new();
+    private HolidayItem editHoliday = new();
+    private UnitItem editUnit = new();
+    private DepartmentItem editDept = new();
+    private CategoryItem editCat = new();
+    private SectionItem editSection = new();
+    private LineItem editLine = new();
+    private TransportStandItem editStand = new();
+    private SalaryRuleItem editSalaryRule = new();
+    private SigningOptionItem editSigning = new();
+    private DormitoryItem editDormitory = new();
+
+    private IEnumerable<DesignationItem> FilteredDesignations =>
+        string.IsNullOrWhiteSpace(searchQuery)
+            ? designations
+            : designations.Where(d =>
+                d.DesignationName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                (d.DesignationNameBang != null && d.DesignationNameBang.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                (d.Grade != null && d.Grade.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out currentUserId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        currentUserIsAdmin = session?.GetString("IsAdmin") == "1";
+        hasAccess = currentUserIsAdmin || true; // Master accessible to authenticated users with permissions
+
+        ResolveActiveTab();
+        await LoadAllDataAsync();
+        loaded = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        ResolveActiveTab();
+    }
+
+    private void ResolveActiveTab()
+    {
+        var uri = Navigation.Uri.ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(QueryTab))
+        {
+            activeTab = QueryTab.ToLowerInvariant();
+        }
+        else if (!string.IsNullOrWhiteSpace(TabName))
+        {
+            activeTab = NormalizeTab(TabName);
+        }
+        else if (uri.Contains("/designation")) activeTab = "designation";
+        else if (uri.Contains("/shiftinfo") || uri.Contains("/shift")) activeTab = "shift";
+        else if (uri.Contains("/holiday")) activeTab = "holiday";
+        else if (uri.Contains("/unitsetup") || uri.Contains("/unit")) activeTab = "unit";
+        else if (uri.Contains("/department")) activeTab = "department";
+        else if (uri.Contains("/employeecategory") || uri.Contains("/category")) activeTab = "category";
+        else if (uri.Contains("/section")) activeTab = "section";
+        else if (uri.Contains("/lineinfo") || uri.Contains("/line")) activeTab = "line";
+        else if (uri.Contains("/transportstand") || uri.Contains("/transport")) activeTab = "transport";
+        else if (uri.Contains("/salaryrule")) activeTab = "salaryrule";
+        else if (uri.Contains("/signingoption") || uri.Contains("/signing")) activeTab = "signing";
+        else if (uri.Contains("/dormitory")) activeTab = "dormitory";
+    }
+
+    private static string NormalizeTab(string input)
+    {
+        var n = input.ToLowerInvariant();
+        if (n.Contains("desig")) return "designation";
+        if (n.Contains("shift")) return "shift";
+        if (n.Contains("holi")) return "holiday";
+        if (n.Contains("unit")) return "unit";
+        if (n.Contains("dept") || n.Contains("department")) return "department";
+        if (n.Contains("cat")) return "category";
+        if (n.Contains("sec")) return "section";
+        if (n.Contains("line")) return "line";
+        if (n.Contains("trans") || n.Contains("stand")) return "transport";
+        if (n.Contains("salary") || n.Contains("rule")) return "salaryrule";
+        if (n.Contains("sign")) return "signing";
+        if (n.Contains("dorm") || n.Contains("quarter") || n.Contains("qtr")) return "dormitory";
+        return n;
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task LoadAllDataAsync()
+    {
+        try
+        {
+            designations = await MasterRepository.GetDesignationsAsync();
+            shifts = await MasterRepository.GetShiftsAsync();
+            holidays = await MasterRepository.GetHolidaysAsync();
+            units = await MasterRepository.GetUnitsAsync();
+            departments = await MasterRepository.GetDepartmentsAsync();
+            categories = await MasterRepository.GetCategoriesAsync();
+            sections = await MasterRepository.GetSectionsAsync();
+            lines = await MasterRepository.GetLinesAsync();
+            transportStands = await MasterRepository.GetTransportStandsAsync();
+            salaryRules = await MasterRepository.GetSalaryRulesAsync();
+            signingOptions = await MasterRepository.GetSigningOptionsAsync();
+            dormitories = await MasterRepository.GetDormitoriesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load master setup data");
+            errorMessage = "Failed to load master data: " + ex.Message;
+        }
+    }
+
+    // Designation CRUD
+    private void EditDesignation(DesignationItem item) { editDesig = new DesignationItem { DesignationId = item.DesignationId, DesignationName = item.DesignationName, DesignationNameBang = item.DesignationNameBang, Grade = item.Grade, GradeBang = item.GradeBang, Position = item.Position, PositionPriority = item.PositionPriority, AttendanceBonus = item.AttendanceBonus, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetDesigForm() { editDesig = new DesignationItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveDesignation() { try { await MasterRepository.SaveDesignationAsync(editDesig); designations = await MasterRepository.GetDesignationsAsync(); successMessage = "Designation saved successfully."; ResetDesigForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteDesignation(int id) { try { await MasterRepository.DeleteDesignationAsync(id); designations = await MasterRepository.GetDesignationsAsync(); successMessage = "Designation deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Shift Info CRUD
+    private void EditShift(ShiftInfoItem item) { editShift = new ShiftInfoItem { ShiftId = item.ShiftId, ShiftName = item.ShiftName, InTime = item.InTime, OutTime = item.OutTime, InTimeFrom = item.InTimeFrom, OutTimeFrom = item.OutTimeFrom, Grace = item.Grace, LunchStart = item.LunchStart, LunchEnd = item.LunchEnd, DefaultStatus = item.DefaultStatus, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetShiftForm() { editShift = new ShiftInfoItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveShift() { try { await MasterRepository.SaveShiftAsync(editShift); shifts = await MasterRepository.GetShiftsAsync(); successMessage = "Shift information saved successfully."; ResetShiftForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteShift(int id) { try { await MasterRepository.DeleteShiftAsync(id); shifts = await MasterRepository.GetShiftsAsync(); successMessage = "Shift deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Holiday CRUD
+    private void EditHoliday(HolidayItem item) { editHoliday = new HolidayItem { HolidayId = item.HolidayId, Date = item.Date, Type = item.Type, Category = item.Category, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetHolidayForm() { editHoliday = new HolidayItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveHoliday() { try { await MasterRepository.SaveHolidayAsync(editHoliday); holidays = await MasterRepository.GetHolidaysAsync(); successMessage = "Holiday saved successfully."; ResetHolidayForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteHoliday(int id) { try { await MasterRepository.DeleteHolidayAsync(id); holidays = await MasterRepository.GetHolidaysAsync(); successMessage = "Holiday removed successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Unit CRUD
+    private void EditUnit(UnitItem item) { editUnit = new UnitItem { UnitId = item.UnitId, UnitName = item.UnitName, UnitNameBang = item.UnitNameBang, CompanyId = item.CompanyId, ShortName = item.ShortName, Address = item.Address, AddressBang = item.AddressBang, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetUnitForm() { editUnit = new UnitItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveUnit() { try { await MasterRepository.SaveUnitAsync(editUnit); units = await MasterRepository.GetUnitsAsync(); successMessage = "Unit saved successfully."; ResetUnitForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteUnit(int id) { try { await MasterRepository.DeleteUnitAsync(id); units = await MasterRepository.GetUnitsAsync(); successMessage = "Unit deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Department CRUD
+    private void EditDepartment(DepartmentItem item) { editDept = new DepartmentItem { DepartmentId = item.DepartmentId, DepartmentName = item.DepartmentName, DepartmentNameBang = item.DepartmentNameBang, UnitId = item.UnitId, ShowPriority = item.ShowPriority, ShortName = item.ShortName, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetDeptForm() { editDept = new DepartmentItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveDepartment() { try { await MasterRepository.SaveDepartmentAsync(editDept); departments = await MasterRepository.GetDepartmentsAsync(); successMessage = "Department saved successfully."; ResetDeptForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteDepartment(int id) { try { await MasterRepository.DeleteDepartmentAsync(id); departments = await MasterRepository.GetDepartmentsAsync(); successMessage = "Department deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Category CRUD
+    private void EditCategory(CategoryItem item) { editCat = new CategoryItem { CategoryId = item.CategoryId, CategoryName = item.CategoryName, CategoryNameBang = item.CategoryNameBang, TiffinAllowance = item.TiffinAllowance, PositionLevel = item.PositionLevel, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetCatForm() { editCat = new CategoryItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveCategory() { try { await MasterRepository.SaveCategoryAsync(editCat); categories = await MasterRepository.GetCategoriesAsync(); successMessage = "Category saved successfully."; ResetCatForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteCategory(int id) { try { await MasterRepository.DeleteCategoryAsync(id); categories = await MasterRepository.GetCategoriesAsync(); successMessage = "Category deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Section CRUD
+    private void EditSection(SectionItem item) { editSection = new SectionItem { SectionId = item.SectionId, SectionName = item.SectionName, SectionNameBang = item.SectionNameBang, UnitId = item.UnitId, ShowTogether = item.ShowTogether, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetSectionForm() { editSection = new SectionItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveSection() { try { await MasterRepository.SaveSectionAsync(editSection); sections = await MasterRepository.GetSectionsAsync(); successMessage = "Section saved successfully."; ResetSectionForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteSection(int id) { try { await MasterRepository.DeleteSectionAsync(id); sections = await MasterRepository.GetSectionsAsync(); successMessage = "Section deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Line CRUD
+    private void EditLine(LineItem item) { editLine = new LineItem { LineId = item.LineId, LineName = item.LineName, LineNameBang = item.LineNameBang, UnitId = item.UnitId, FloorNo = item.FloorNo, OperatorCount = item.OperatorCount, HelperCount = item.HelperCount, IronmanCount = item.IronmanCount, OthersCount = item.OthersCount, Position = item.Position, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetLineForm() { editLine = new LineItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveLine() { try { await MasterRepository.SaveLineAsync(editLine); lines = await MasterRepository.GetLinesAsync(); successMessage = "Line saved successfully."; ResetLineForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteLine(int id) { try { await MasterRepository.DeleteLineAsync(id); lines = await MasterRepository.GetLinesAsync(); successMessage = "Line deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Transport Stand CRUD
+    private void EditStand(TransportStandItem item) { editStand = new TransportStandItem { StandId = item.StandId, StandName = item.StandName, StandForm = item.StandForm }; successMessage = null; errorMessage = null; }
+    private void ResetStandForm() { editStand = new TransportStandItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveStand() { try { await MasterRepository.SaveTransportStandAsync(editStand); transportStands = await MasterRepository.GetTransportStandsAsync(); successMessage = "Transport Stand saved successfully."; ResetStandForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteStand(int id) { try { await MasterRepository.DeleteTransportStandAsync(id); transportStands = await MasterRepository.GetTransportStandsAsync(); successMessage = "Transport Stand deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Salary Rule CRUD
+    private void EditSalaryRule(SalaryRuleItem item) { editSalaryRule = new SalaryRuleItem { RuleId = item.RuleId, RuleName = item.RuleName, BasicPercent = item.BasicPercent, HouseRentPercent = item.HouseRentPercent, MedicalAllowance = item.MedicalAllowance, TransportAllowance = item.TransportAllowance, FoodAllowance = item.FoodAllowance, AttendanceBonus = item.AttendanceBonus, MinAttendanceBonus = item.MinAttendanceBonus, DearnessAllowance = item.DearnessAllowance, Status = item.Status, Remarks = item.Remarks }; successMessage = null; errorMessage = null; }
+    private void ResetSalaryRuleForm() { editSalaryRule = new SalaryRuleItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveSalaryRule() { try { await MasterRepository.SaveSalaryRuleAsync(editSalaryRule); salaryRules = await MasterRepository.GetSalaryRulesAsync(); successMessage = "Salary Rule saved successfully."; ResetSalaryRuleForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteSalaryRule(int id) { try { await MasterRepository.DeleteSalaryRuleAsync(id); salaryRules = await MasterRepository.GetSalaryRulesAsync(); successMessage = "Salary Rule deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Signing Option CRUD
+    private void EditSigningOption(SigningOptionItem item) { editSigning = new SigningOptionItem { SigningId = item.SigningId, SigningName = item.SigningName, SigningPriority = item.SigningPriority, SigningFor = item.SigningFor, SigningStatus = item.SigningStatus }; successMessage = null; errorMessage = null; }
+    private void ResetSigningForm() { editSigning = new SigningOptionItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveSigningOption() { try { await MasterRepository.SaveSigningOptionAsync(editSigning); signingOptions = await MasterRepository.GetSigningOptionsAsync(); successMessage = "Signing Option saved successfully."; ResetSigningForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteSigningOption(int id) { try { await MasterRepository.DeleteSigningOptionAsync(id); signingOptions = await MasterRepository.GetSigningOptionsAsync(); successMessage = "Signing Option deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Dormitory / Quarter CRUD
+    private void EditDormitory(DormitoryItem item) { editDormitory = new DormitoryItem { DormitoryId = item.DormitoryId, DormitoryName = item.DormitoryName, DormitoryNameBang = item.DormitoryNameBang, UnitId = item.UnitId, UnitName = item.UnitName, ShowTogether = item.ShowTogether }; successMessage = null; errorMessage = null; }
+    private void ResetDormitoryForm() { editDormitory = new DormitoryItem(); successMessage = null; errorMessage = null; }
+    private async Task SaveDormitory() { try { await MasterRepository.SaveDormitoryAsync(editDormitory); dormitories = await MasterRepository.GetDormitoriesAsync(); successMessage = "Dormitory information saved successfully."; ResetDormitoryForm(); } catch (Exception ex) { errorMessage = ex.Message; } }
+    private async Task DeleteDormitory(int id) { try { await MasterRepository.DeleteDormitoryAsync(id); dormitories = await MasterRepository.GetDormitoriesAsync(); successMessage = "Dormitory record deleted successfully."; } catch (Exception ex) { errorMessage = ex.Message; } }
+
+    // Confirmation Dialog State & Logic
+    private bool showConfirmModal = false;
+    private string confirmItemTitle = "";
+    private string confirmItemType = "";
+    private Func<Task>? pendingDeleteAction = null;
+
+    private void PromptDelete(string itemType, string itemName, Func<Task> onConfirm)
+    {
+        confirmItemType = itemType;
+        confirmItemTitle = itemName;
+        pendingDeleteAction = onConfirm;
+        showConfirmModal = true;
+        StateHasChanged();
+    }
+
+    private void CancelDelete()
+    {
+        showConfirmModal = false;
+        pendingDeleteAction = null;
+    }
+
+    private async Task ExecuteConfirmedDelete()
+    {
+        if (pendingDeleteAction != null)
+        {
+            var action = pendingDeleteAction;
+            showConfirmModal = false;
+            pendingDeleteAction = null;
+            await action();
+        }
+    }
+
+    private string GetHeaderTitle() => activeTab switch
+    {
+        "designation" => "Designation Setup",
+        "shift" => "Shift Information",
+        "holiday" => "Holiday Calendar",
+        "unit" => "Unit Setup",
+        "department" => "Department Setup",
+        "category" => "Employee Category Setup",
+        "section" => "Section Setup",
+        "line" => "Line Information",
+        "transport" => "Transport Stand Setup",
+        "salaryrule" => "Salary Rule Structure",
+        "signing" => "Signing Authority Setup",
+        "dormitory" => "Dormitory Setup",
+        _ => "Master Data Setup"
+    };
+
+    private string GetHeaderSubtitle() => activeTab switch
+    {
+        "designation" => "Configure employee designations, Bengali titles, grades, and attendance bonuses.",
+        "shift" => "Configure working shifts, punch buffers, grace minutes, and break routines.",
+        "holiday" => "Declare and schedule organizational, government, and festival holidays.",
+        "unit" => "Configure operational business units, mills, factories, and locations.",
+        "department" => "Configure organizational divisions, departments, and priority order.",
+        "category" => "Configure employee categories (Staff, Worker, Contractual) and allowances.",
+        "section" => "Configure operational factory sections and units.",
+        "line" => "Configure production lines, floor locations, and man-power quotas.",
+        "transport" => "Configure employee transport stops and route stands.",
+        "salaryrule" => "Configure gross salary percentage formulas and breakdown rules.",
+        "signing" => "Configure report and payslip authorization signers and sequence.",
+        "dormitory" => "Configure employee residential dormitories, quarters, halls, and room allocations.",
+        _ => "Manage organizational master data and configuration."
+    };
+}

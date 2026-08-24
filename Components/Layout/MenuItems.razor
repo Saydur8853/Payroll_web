@@ -26,7 +26,7 @@
                         @GetIcon(item.Name)
                     </span>
                     <span class="menu-text" title="@item.Name">@item.Name</span>
-                    <span class="menu-count-badge">@item.Children.Count</span>
+                    <span class="menu-count-badge">@GetVisibleChildrenCount(item)</span>
                     <svg class="menu-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                     </svg>
@@ -54,7 +54,71 @@
         }
         else if (IsEmployeeStatusItem(item.Name))
         {
-            <NavLink class="menu-item menu-link-activeable" href="/EmployeeStatus" Match="NavLinkMatch.Prefix" title="@item.Name">
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations?tab=status" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsEmployeeDetailsItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeDetails" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSetPriorityItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations?tab=priority" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsContactInfoItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations?tab=contact" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">
+                        @GetIcon(item.Name)
+                    </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsWorkforceOperationsItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations" Match="NavLinkMatch.Prefix" title="@item.Name">
                 @if (Level == 0)
                 {
                     <span class="menu-icon-wrap">
@@ -102,7 +166,7 @@
         }
         else if (IsSetCompanyItem(item.Name))
         {
-            <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=company" Match="NavLinkMatch.Prefix" title="@item.Name">
+            <NavLink class="menu-item menu-link-activeable" href="/CompanyManagement" Match="NavLinkMatch.Prefix" title="@item.Name">
                 @if (Level == 0)
                 {
                     <span class="menu-icon-wrap">
@@ -124,6 +188,174 @@
                     <span class="menu-icon-wrap">
                         @GetIcon(item.Name)
                     </span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsDesignationItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=designation" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsShiftInfoItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=shift" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsHolidayItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=holiday" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsUnitItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=unit" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsDepartmentItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=department" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsCategoryItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=category" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSectionItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=section" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsLineItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=line" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsTransportStandItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=transport" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSalaryRuleItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=salaryrule" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSigningOptionItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=signing" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
+                }
+                else
+                {
+                    <span class="menu-bullet-dot"></span>
+                }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsDormitoryItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MasterSetup?tab=dormitory" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0)
+                {
+                    <span class="menu-icon-wrap">@GetIcon(item.Name)</span>
                 }
                 else
                 {
@@ -177,10 +409,52 @@
         get
         {
             if (Items is null) return [];
-            if (string.IsNullOrWhiteSpace(SearchQuery)) return Items;
+            
+            var list = Items.ToList();
+            
+            // Clean up Employee Information sub-items ONLY at Level > 0 (inside the group)
+            if (Level > 0)
+            {
+                var hasEmployee = list.Any(i => IsEmployeeLeafItem(i.Name));
+                var hasOps = list.Any(i => IsEmployeeOpsLeafItem(i.Name));
+                
+                if (hasEmployee || hasOps)
+                {
+                    var cleanedList = new List<NavigationItem>();
+                    bool addedEmp = false;
+                    bool addedOps = false;
+                    
+                    foreach (var item in list)
+                    {
+                        if (IsEmployeeLeafItem(item.Name))
+                        {
+                            if (!addedEmp)
+                            {
+                                cleanedList.Add(new NavigationItem { Id = 13, Name = "Employee Profiles", ParentId = item.ParentId });
+                                addedEmp = true;
+                            }
+                        }
+                        else if (IsEmployeeOpsLeafItem(item.Name))
+                        {
+                            if (!addedOps)
+                            {
+                                cleanedList.Add(new NavigationItem { Id = 49, Name = "Workforce Operations", ParentId = item.ParentId });
+                                addedOps = true;
+                            }
+                        }
+                        else
+                        {
+                            cleanedList.Add(item);
+                        }
+                    }
+                    list = cleanedList;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(SearchQuery)) return list;
 
             var q = SearchQuery.Trim();
-            return Items.Where(item => MatchesSearch(item, q));
+            return list.Where(item => MatchesSearch(item, q));
         }
     }
 
@@ -197,9 +471,45 @@
         return true;
     }
 
+    private int GetVisibleChildrenCount(NavigationItem item)
+    {
+        if (item.Children.Count == 0) return 0;
+        var list = item.Children;
+        var hasEmployee = list.Any(i => IsEmployeeLeafItem(i.Name));
+        var hasOps = list.Any(i => IsEmployeeOpsLeafItem(i.Name));
+        if (hasEmployee || hasOps)
+        {
+            int count = 0;
+            if (hasEmployee) count++;
+            if (hasOps) count++;
+            count += list.Count(i => !IsEmployeeLeafItem(i.Name) && !IsEmployeeOpsLeafItem(i.Name));
+            return count;
+        }
+        return list.Count;
+    }
+
     private static bool IsDashboardItem(string name, int id)
     {
         return id == 184 || name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsEmployeeLeafItem(string name)
+    {
+        return name.Equals("Employee", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Profiles", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Profile", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp Details", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsEmployeeOpsLeafItem(string name)
+    {
+        return name.Equals("Emp Status", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Status", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Set Priority", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Contact Info", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Workforce Operations", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Operations", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsEmployeeStatusItem(string name)
@@ -211,10 +521,45 @@
             || name.Equals("Workforce Status", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsEmployeeDetailsItem(string name)
+    {
+        return name.Equals("Employee Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee_Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp_Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Detail", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSetPriorityItem(string name)
+    {
+        return name.Equals("Set Priority", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Set_Priority", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Priority", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Priority", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Set Employee Priority", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsContactInfoItem(string name)
+    {
+        return name.Equals("Contact Info", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Contact Information", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Contact", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp Contact", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsWorkforceOperationsItem(string name)
+    {
+        return name.Equals("Workforce Operations", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Operations", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Operations", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsEmployeeItem(string name)
     {
         return name.Equals("Employee", StringComparison.OrdinalIgnoreCase) 
-            || name.Equals("Employee Information", StringComparison.OrdinalIgnoreCase);
+            || name.Equals("Employee Profiles", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Profile", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsControlEntryItem(string name)
@@ -250,6 +595,96 @@
             || name.Equals("User Privileges", StringComparison.OrdinalIgnoreCase)
             || name.Equals("User Privilage", StringComparison.OrdinalIgnoreCase)
             || name.Equals("User Privilages", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDesignationItem(string name)
+    {
+        return name.Equals("Designation", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Designations", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsShiftInfoItem(string name)
+    {
+        return name.Equals("Shift Info", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Shift_Info", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Shift Information", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Shift", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHolidayItem(string name)
+    {
+        return name.Equals("Set HoliDay", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Set Holiday", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Holiday", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Holidays", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsUnitItem(string name)
+    {
+        return name.Equals("Unit", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Unit Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Units", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDepartmentItem(string name)
+    {
+        return name.Equals("Department", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Departments", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCategoryItem(string name)
+    {
+        return name.Equals("Category", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Employee Category", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Emp Category", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Categories", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSectionItem(string name)
+    {
+        return name.Equals("Section", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Sections", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLineItem(string name)
+    {
+        return name.Equals("Line", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Line Info", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Lines", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTransportStandItem(string name)
+    {
+        return name.Equals("Transport Stand", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Transport_Stand", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Transport", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Bus Stand", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSalaryRuleItem(string name)
+    {
+        return name.Equals("Salary Rule", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Salary_Rule", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Salary Rules", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSigningOptionItem(string name)
+    {
+        return name.Equals("Signing Option", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Signing_Option", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Signing Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Signing", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDormitoryItem(string name)
+    {
+        return name.Equals("Dormitory", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Dormitory Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Dorm", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Quarter", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Quater", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Quarter Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Quater Setup", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsUserManagementRoot(string name)
@@ -290,6 +725,10 @@
         else if (n.Contains("setup") || n.Contains("master") || n.Contains("config") || n.Contains("company") || n.Contains("setting") || n.Contains("system"))
         {
             builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path fill-rule=""evenodd"" d=""M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"" clip-rule=""evenodd""/></svg>");
+        }
+        else if (n.Contains("build") || n.Contains("dorm") || n.Contains("floor") || n.Contains("quarter") || n.Contains("room"))
+        {
+            builder.AddMarkupContent(0, @"<svg viewBox=""0 0 20 20"" fill=""currentColor""><path d=""M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z""/></svg>");
         }
         else if (n.Contains("user") || n.Contains("security") || n.Contains("privilege") || n.Contains("role") || n.Contains("access") || n.Contains("auth"))
         {

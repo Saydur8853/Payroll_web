@@ -157,6 +157,7 @@ public sealed class EmployeeStatusItem
     public int EmployeeId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
+    public string BanglaEmployeeName { get; set; } = string.Empty;
     public string DesignationName { get; set; } = string.Empty;
     public string DepartmentName { get; set; } = string.Empty;
     public string SectionName { get; set; } = string.Empty;
@@ -176,4 +177,93 @@ public sealed class EmployeeStatusItem
     public string OriginalTransport { get; set; } = "N";
     public DateTime? OriginalDateOfJoining { get; set; }
     public string OriginalTransportStand { get; set; } = string.Empty;
+}
+
+public sealed class EmployeeExportItem
+{
+    public int EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string BanglaEmployeeName { get; set; } = string.Empty;
+    public string ErpCode { get; set; } = string.Empty;
+    public string UnitName { get; set; } = string.Empty;
+    public string CategoryName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public string SectionName { get; set; } = string.Empty;
+    public string LineName { get; set; } = string.Empty;
+    public string DesignationName { get; set; } = string.Empty;
+    public string ShiftName { get; set; } = string.Empty;
+    public string SalaryRuleName { get; set; } = string.Empty;
+    public string FloorName { get; set; } = string.Empty;
+    public DateTime? DateOfJoining { get; set; }
+    public DateTime? CloseDate { get; set; }
+    public decimal Gross { get; set; }
+    public string EmployeeStatus { get; set; } = "Active";
+    public string StatusReason { get; set; } = string.Empty;
+    public string Weekend { get; set; } = "N/A";
+    public string ProximityNo { get; set; } = string.Empty;
+    public string LicenseNo { get; set; } = string.Empty;
+    public string EmployeeGrade { get; set; } = string.Empty;
+    public bool Transport { get; set; }
+    public bool OverTime { get; set; } = true;
+    public bool QuarterHolder { get; set; }
+    public bool TaxHolder { get; set; }
+    public bool EarnLeaveHolder { get; set; }
+    public string FatherName { get; set; } = string.Empty;
+    public string BanglaFatherName { get; set; } = string.Empty;
+    public string MotherName { get; set; } = string.Empty;
+    public string BanglaMotherName { get; set; } = string.Empty;
+    public string SpouseName { get; set; } = string.Empty;
+    public string BanglaSpouseName { get; set; } = string.Empty;
+    public DateTime? DateOfBirth { get; set; }
+    public string Gender { get; set; } = "MALE";
+    public string Religion { get; set; } = "ISLAM";
+    public string MaritalStatus { get; set; } = "SINGLE";
+    public string BloodGroup { get; set; } = string.Empty;
+    public string NationalId { get; set; } = string.Empty;
+    public string ContactNo { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Education { get; set; } = string.Empty;
+    public string EmploymentExperience { get; set; } = string.Empty;
+    public string Remarks { get; set; } = string.Empty;
+    public string PresentVillage { get; set; } = string.Empty;
+    public string BanglaPresentVillage { get; set; } = string.Empty;
+    public string PresentPost { get; set; } = string.Empty;
+    public string BanglaPresentPost { get; set; } = string.Empty;
+    public string PresentPoliceStation { get; set; } = string.Empty;
+    public string BanglaPresentPoliceStation { get; set; } = string.Empty;
+    public string PresentDistrict { get; set; } = string.Empty;
+    public string BanglaPresentDistrict { get; set; } = string.Empty;
+    public string PermanentVillage { get; set; } = string.Empty;
+    public string BanglaPermanentVillage { get; set; } = string.Empty;
+    public string PermanentPost { get; set; } = string.Empty;
+    public string BanglaPermanentPost { get; set; } = string.Empty;
+    public string PermanentPoliceStation { get; set; } = string.Empty;
+    public string BanglaPermanentPoliceStation { get; set; } = string.Empty;
+    public string PermanentDistrict { get; set; } = string.Empty;
+    public string BanglaPermanentDistrict { get; set; } = string.Empty;
+    public bool Contractual { get; set; }
+}
+
+public sealed class EmployeeImportRow
+{
+    public int RowIndex { get; set; }
+    public EmployeeInformation Employee { get; set; } = new();
+    public string DisplayDepartment { get; set; } = string.Empty;
+    public string DisplayDesignation { get; set; } = string.Empty;
+    public string DisplayUnit { get; set; } = string.Empty;
+    public bool IsExistingInDb { get; set; }
+    public bool IsValid { get; set; } = true;
+    public string? ErrorMessage { get; set; }
+    public string Action { get; set; } = "Insert";
+}
+
+public sealed class EmployeeImportResult
+{
+    public int TotalRows { get; set; }
+    public int InsertedCount { get; set; }
+    public int UpdatedCount { get; set; }
+    public int SkippedCount { get; set; }
+    public int FailedCount { get; set; }
+    public List<string> ErrorMessages { get; set; } = [];
 }

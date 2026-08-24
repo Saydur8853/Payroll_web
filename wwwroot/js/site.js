@@ -328,10 +328,25 @@ confirmPassword?.addEventListener('input', validatePasswordMatch);
 validatePasswordMatch();
 
 window.downloadFileFromBase64 = (fileName, contentType, base64Data) => {
-    const link = document.createElement('a');
-    link.download = fileName;
-    link.href = `data:${contentType};base64,${base64Data}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType || 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 100);
+    } catch (e) {
+        console.error('Download failed', e);
+    }
 };

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using TG.Payroll.Web.Services;
 
+using TG.Payroll.Web.Models;
+
 namespace TG.Payroll.Web.Pages;
 
 public class IndexModel(PayrollRepository payrollRepository, ILogger<IndexModel> logger) : PageModel
@@ -9,12 +11,35 @@ public class IndexModel(PayrollRepository payrollRepository, ILogger<IndexModel>
     [BindProperty] public string Username { get; set; } = string.Empty;
     [BindProperty] public string Password { get; set; } = string.Empty;
     public string? ErrorMessage { get; private set; }
+    public CompanyItem? Company { get; private set; }
 
-    public IActionResult OnGet()
-        => HttpContext.Session.GetString("UserId") is null ? Page() : Redirect("/Dashboard");
+    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken)
+    {
+        if (HttpContext.Session.GetString("UserId") is not null)
+        {
+            return Redirect("/Dashboard");
+        }
+
+        await LoadCompanyAsync(cancellationToken);
+        return Page();
+    }
+
+    private async Task LoadCompanyAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var companies = await payrollRepository.GetCompaniesAsync(cancellationToken);
+            Company = companies.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not load company info for login page.");
+        }
+    }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
+        await LoadCompanyAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
         {
             ErrorMessage = "Enter your username and password.";

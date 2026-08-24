@@ -9,7 +9,71 @@
 
 @if (!loaded)
 {
-    <div class="p-6 text-center text-slate-500">Loading User & System Management...</div>
+    <div class="skeleton-shell">
+        <div class="skeleton-header-card">
+            <div class="skeleton-box" style="width:200px;height:12px;"></div>
+            <div class="skeleton-box" style="width:340px;height:32px;border-radius:8px;"></div>
+            <div class="skeleton-box" style="width:500px;height:14px;"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <div class="skeleton-box" style="width:140px;height:38px;border-radius:10px;"></div>
+            <div class="skeleton-box" style="width:140px;height:38px;border-radius:10px;"></div>
+            <div class="skeleton-box" style="width:140px;height:38px;border-radius:10px;"></div>
+        </div>
+
+        <div class="skeleton-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="skeleton-box" style="width:240px;height:22px;"></div>
+                <div class="skeleton-box" style="width:100px;height:14px;"></div>
+            </div>
+            <div class="skeleton-grid">
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:120px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:110px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:100px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="skeleton-card">
+            <div class="skeleton-table-wrap">
+                <table class="skeleton-table">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;"><div class="skeleton-box" style="width:40px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:150px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:100px;height:12px;"></div></th>
+                            <th style="width:120px;"><div class="skeleton-box" style="width:80px;height:12px;"></div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < 4; i++)
+                        {
+                            <tr>
+                                <td><div class="skeleton-box" style="width:36px;height:18px;border-radius:12px;"></div></td>
+                                <td><div class="skeleton-box" style="width:180px;height:14px;"></div></td>
+                                <td><div class="skeleton-box" style="width:80px;height:18px;border-radius:12px;"></div></td>
+                                <td>
+                                    <div style="display:flex;gap:6px;">
+                                        <div class="skeleton-box" style="width:40px;height:24px;border-radius:6px;"></div>
+                                        <div class="skeleton-box" style="width:45px;height:24px;border-radius:6px;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 }
 else if (!hasAccess)
 {
@@ -30,24 +94,28 @@ else
     <!-- Navigation Tabs -->
     <div class="management-tabs-container">
         <div class="management-tabs">
-            <button type="button" class="tab-btn @(activeTab == "users" ? "active" : "")" @onclick='() => SetTab("users")'>
-                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
-                <span>User Privileges</span>
-            </button>
-            <button type="button" class="tab-btn @(activeTab == "controls" ? "active" : "")" @onclick='() => SetTab("controls")'>
-                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-                <span>Control Entry</span>
-                <span class="tab-badge">@allControls.Count</span>
-            </button>
-            <button type="button" class="tab-btn @(activeTab == "company" ? "active" : "")" @onclick='() => SetTab("company")'>
-                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9zM7 13h2v2H7v-2zm4 0h2v2h-2v-2z" clip-rule="evenodd"/></svg>
-                <span>Set Company</span>
-                <span class="tab-badge">@companies.Count</span>
-            </button>
-            <button type="button" class="tab-btn @(activeTab == "tracking" ? "active" : "")" @onclick='() => SetTab("tracking")'>
-                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
-                <span>Tracking Task</span>
-            </button>
+            @if (canAccessUserPrivileges)
+            {
+                <button type="button" class="tab-btn @(activeTab == "users" ? "active" : "")" @onclick='() => SetTab("users")'>
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                    <span>User Privileges</span>
+                </button>
+            }
+            @if (canAccessControlEntry)
+            {
+                <button type="button" class="tab-btn @(activeTab == "controls" ? "active" : "")" @onclick='() => SetTab("controls")'>
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+                    <span>Control Entry</span>
+                    <span class="tab-badge">@allControls.Count</span>
+                </button>
+            }
+            @if (canAccessTrackingTask)
+            {
+                <button type="button" class="tab-btn @(activeTab == "tracking" ? "active" : "")" @onclick='() => SetTab("tracking")'>
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                    <span>Tracking Task</span>
+                </button>
+            }
         </div>
     </div>
 
@@ -60,8 +128,25 @@ else
         <div class="database-error management-message">@errorMessage</div>
     }
 
+    @if (showConfirmModal)
+    {
+        <div class="modal-backdrop-overlay" @onclick="CancelDelete">
+            <div class="confirm-delete-modal" @onclick:stopPropagation>
+                <div class="confirm-modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3>Are you sure?</h3>
+                <p>Do you really want to delete control <strong>@confirmControlName</strong>? This action cannot be undone.</p>
+                <div class="confirm-modal-actions">
+                    <button type="button" class="btn-cancel-modal" @onclick="CancelDelete">No, Cancel</button>
+                    <button type="button" class="btn-confirm-delete" @onclick="ExecuteConfirmedDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- TAB 1: CONTROL ENTRY & MENU MASTER -->
-    @if (activeTab == "controls")
+    @if (activeTab == "controls" && canAccessControlEntry)
     {
         <div class="control-entry-shell">
             <!-- Control Form Card -->
@@ -202,99 +287,7 @@ else
                                             <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditControl(ctrl)" title="Edit this control">
                                                 Edit
                                             </button>
-                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick="() => DeleteControl(ctrl)" title="Delete control">
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-    }
-
-    <!-- TAB 2: SET COMPANY MANAGEMENT -->
-    @if (activeTab == "company")
-    {
-        <div class="control-entry-shell">
-            <!-- Company Form Card -->
-            <section class="control-form-panel">
-                <div class="create-user-title">
-                    <h2>@(editCompanyId > 0 ? $"Edit Company (ID: {editCompanyId})" : "Register Company")</h2>
-                    <p>Configure company entities, addresses, short names, and logo settings.</p>
-                </div>
-                <form @onsubmit="SaveCompany" @onsubmit:preventDefault>
-                    <div class="control-form-fields">
-                        <label>
-                            <span>Company Name <span style="color:#e11d48;">*</span></span>
-                            <input @bind="companyNameInput" placeholder="e.g. NTTML Mirjapur Mills Ltd" required maxlength="150" />
-                        </label>
-
-                        <label>
-                            <span>Short Name / Remarks</span>
-                            <input @bind="companyRemarksInput" placeholder="e.g. NTTML" maxlength="50" />
-                        </label>
-
-                        <label>
-                            <span>Company Address</span>
-                            <input @bind="companyAddressInput" placeholder="e.g. Mirjapur, Tangail" maxlength="200" />
-                        </label>
-
-                        <label>
-                            <span>Logo File / Path</span>
-                            <input @bind="companyLogoPathInput" placeholder="e.g. /images/logo.png" maxlength="250" />
-                        </label>
-                    </div>
-
-                    <div class="control-form-actions">
-                        <button type="button" class="btn-secondary-action" @onclick="ResetCompanyForm">
-                            <span>Reset Form</span>
-                        </button>
-                        <button type="submit" class="btn-primary-action @(editCompanyId > 0 ? "btn-update-mode" : "")">
-                            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
-                            <span>@(editCompanyId > 0 ? $"Update Company (ID: {editCompanyId})" : "Save Company")</span>
-                        </button>
-                    </div>
-                </form>
-            </section>
-
-            <!-- Registered Companies Table -->
-            <section class="control-list-panel">
-                <div class="control-list-header">
-                    <div>
-                        <h2>Registered Companies</h2>
-                        <p>Total @companies.Count company entities in database `COMPANY` table.</p>
-                    </div>
-                </div>
-
-                <div class="controls-table-container">
-                    <table class="controls-data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 70px;">ID</th>
-                                <th>Company Name</th>
-                                <th>Short Name</th>
-                                <th>Address</th>
-                                <th style="width: 110px; text-align: center;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var comp in companies)
-                            {
-                                <tr>
-                                    <td><span class="id-badge">#@comp.CompanyId</span></td>
-                                    <td><strong class="ctrl-name-text">@comp.CompanyName</strong></td>
-                                    <td><span class="type-pill">@(string.IsNullOrWhiteSpace(comp.Remarks) ? "-" : comp.Remarks)</span></td>
-                                    <td><span style="color:#64748b;font-size:12.5px;">@(string.IsNullOrWhiteSpace(comp.Address) ? "-" : comp.Address)</span></td>
-                                    <td style="text-align: center;">
-                                        <div class="table-action-group">
-                                            <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditCompany(comp)" title="Edit company">
-                                                Edit
-                                            </button>
-                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick="() => DeleteCompany(comp)" title="Delete company">
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick="() => PromptDeleteControl(ctrl)" title="Delete control">
                                                 Delete
                                             </button>
                                         </div>
@@ -309,7 +302,7 @@ else
     }
 
     <!-- TAB 3: TRACKING TASK & AUDIT -->
-    @if (activeTab == "tracking")
+    @if (activeTab == "tracking" && canAccessTrackingTask)
     {
         <div class="control-entry-shell">
             <section class="control-form-panel">
@@ -391,7 +384,7 @@ else
     }
 
     <!-- TAB 4: USER ROLES & ACCESS -->
-    @if (activeTab == "users")
+    @if (activeTab == "users" && canAccessUserPrivileges)
     {
         <section class="create-user-panel user-create-panel">
             <div class="create-user-title"><div><h2>Add New User Account</h2><p>Create a login and assign its role and module privileges.</p></div></div>
@@ -547,6 +540,9 @@ else
 
     private bool loaded;
     private bool hasAccess;
+    private bool canAccessUserPrivileges;
+    private bool canAccessControlEntry;
+    private bool canAccessTrackingTask;
     private string activeTab = "users";
     private string currentUserName = "User";
     private string companyName = "Payroll";
@@ -558,7 +554,6 @@ else
     private List<NavigationItem> moduleTree = [];
     private List<ControlItem> allControls = [];
     private List<string> controlTypes = ["MENU", "FORM", "REPORT", "BUTTON"];
-    private List<CompanyItem> companies = [];
     private PayrollUser? selectedUser;
     private bool selectedUserIsAdmin => selectedUser?.Admin == 1;
 
@@ -579,13 +574,7 @@ else
     private string controlsSearchQuery = string.Empty;
     private string controlsSortOption = "priority-asc";
 
-    // Company Entry
-    private int editCompanyId;
-    private string companyNameInput = string.Empty;
-    private string companyAddressInput = string.Empty;
-    private string companyRemarksInput = string.Empty;
-    private string companyLogoPathInput = string.Empty;
-
+    // Feedback messages
     private string? successMessage;
     private string? errorMessage;
 
@@ -604,12 +593,26 @@ else
         currentUserIsAdmin = session?.GetString("IsAdmin") == "1";
 
         var menu = await PayrollRepository.GetMenuAsync(currentUserId);
-        hasAccess = currentUserIsAdmin || HasModuleRecursive(menu, item => 
-            item.Name.Contains("USER MANAGEMENT", StringComparison.OrdinalIgnoreCase) || 
-            item.Name.Contains("USER & SYSTEM", StringComparison.OrdinalIgnoreCase) || 
-            item.Name.Contains("User Privilege", StringComparison.OrdinalIgnoreCase) || 
-            item.Name.Contains("Control Entry", StringComparison.OrdinalIgnoreCase) || 
-            item.Name.Contains("User Management", StringComparison.OrdinalIgnoreCase));
+        canAccessUserPrivileges = currentUserIsAdmin || HasModuleRecursive(menu, item => 
+            item.Id == 112 || 
+            item.Name.Equals("User Privilage", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("User Privilege", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("User Privileges", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("User Control", StringComparison.OrdinalIgnoreCase));
+
+        canAccessControlEntry = currentUserIsAdmin || HasModuleRecursive(menu, item => 
+            item.Id == 23 || 
+            item.Name.Equals("Control Entry", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("Control_Entry", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("Add Features", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("Feature Entry", StringComparison.OrdinalIgnoreCase));
+
+        canAccessTrackingTask = currentUserIsAdmin || HasModuleRecursive(menu, item => 
+            item.Id == 111 || 
+            item.Name.Equals("Tracking Task", StringComparison.OrdinalIgnoreCase) ||
+            item.Name.Equals("Task Tracking", StringComparison.OrdinalIgnoreCase));
+
+        hasAccess = canAccessUserPrivileges || canAccessControlEntry || canAccessTrackingTask;
 
         if (!hasAccess)
         {
@@ -617,25 +620,48 @@ else
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(QueryActiveTab))
-        {
-            activeTab = QueryActiveTab.ToLowerInvariant();
-        }
-
+        ResolveActiveTab();
         await LoadDataAsync(QueryUserId);
         loaded = true;
     }
 
     protected override void OnParametersSet()
     {
-        if (loaded && !string.IsNullOrWhiteSpace(QueryActiveTab) && QueryActiveTab != activeTab)
+        if (loaded && !string.IsNullOrWhiteSpace(QueryActiveTab))
         {
-            activeTab = QueryActiveTab.ToLowerInvariant();
+            ResolveActiveTab();
+        }
+    }
+
+    private void ResolveActiveTab()
+    {
+        var requested = QueryActiveTab?.ToLowerInvariant();
+        if (requested == "controls" && canAccessControlEntry)
+        {
+            activeTab = "controls";
+        }
+        else if (requested == "tracking" && canAccessTrackingTask)
+        {
+            activeTab = "tracking";
+        }
+        else if (requested == "users" && canAccessUserPrivileges)
+        {
+            activeTab = "users";
+        }
+        else
+        {
+            if (canAccessUserPrivileges) activeTab = "users";
+            else if (canAccessControlEntry) activeTab = "controls";
+            else if (canAccessTrackingTask) activeTab = "tracking";
+            else activeTab = "controls";
         }
     }
 
     private void SetTab(string tab)
     {
+        if (tab == "users" && !canAccessUserPrivileges) return;
+        if (tab == "controls" && !canAccessControlEntry) return;
+        if (tab == "tracking" && !canAccessTrackingTask) return;
         activeTab = tab;
         successMessage = null;
         errorMessage = null;
@@ -647,7 +673,6 @@ else
         modules = await PayrollRepository.GetAllMenuControlsAsync();
         moduleTree = await PayrollRepository.GetAllMenuTreeAsync();
         allControls = await PayrollRepository.GetControlsDetailedAsync();
-        companies = await PayrollRepository.GetCompaniesAsync();
 
         if (users.Count > 0)
         {
@@ -778,7 +803,11 @@ else
 
     private async Task SavePrivileges()
     {
-        if (!hasAccess) return;
+        if (!canAccessUserPrivileges)
+        {
+            errorMessage = "Access Denied: You do not have permission to modify user privileges.";
+            return;
+        }
         try
         {
             await PayrollRepository.UpdateUserPrivilegesAsync(selectedUserId, selectedModuleIds.ToList());
@@ -796,7 +825,11 @@ else
 
     private async Task CreateUser()
     {
-        if (!hasAccess) return;
+        if (!canAccessUserPrivileges)
+        {
+            errorMessage = "Access Denied: You do not have permission to create user accounts.";
+            return;
+        }
         if (string.IsNullOrWhiteSpace(newUsername) || string.IsNullOrWhiteSpace(newPassword))
         {
             errorMessage = "Username and password are required.";
@@ -884,7 +917,11 @@ else
 
     private async Task SaveControl()
     {
-        if (!hasAccess) return;
+        if (!canAccessControlEntry)
+        {
+            errorMessage = "Access Denied: You do not have permission to modify system controls.";
+            return;
+        }
         if (string.IsNullOrWhiteSpace(controlNameInput))
         {
             errorMessage = "Control Name is required.";
@@ -895,13 +932,22 @@ else
         {
             if (editControlId > 0)
             {
-                await PayrollRepository.UpdateControlAsync(editControlId, controlNameInput.Trim(), callingIdInput, controlTypeInput, priorityInput);
-                successMessage = "Control / menu item updated successfully.";
+                await PayrollRepository.UpdateControlAsync(
+                    editControlId,
+                    controlNameInput.Trim(),
+                    callingIdInput,
+                    controlTypeInput,
+                    priorityInput);
+                successMessage = $"Control '{controlNameInput}' updated successfully.";
             }
             else
             {
-                await PayrollRepository.CreateControlAsync(controlNameInput.Trim(), callingIdInput, controlTypeInput, priorityInput);
-                successMessage = "New control / menu item created successfully in CONTROLS table.";
+                await PayrollRepository.CreateControlAsync(
+                    controlNameInput.Trim(),
+                    callingIdInput,
+                    controlTypeInput,
+                    priorityInput);
+                successMessage = $"Control '{controlNameInput}' registered successfully.";
             }
 
             ResetControlForm();
@@ -918,7 +964,11 @@ else
 
     private async Task DeleteControl(ControlItem ctrl)
     {
-        if (!hasAccess) return;
+        if (!canAccessControlEntry)
+        {
+            errorMessage = "Access Denied: You do not have permission to delete system controls.";
+            return;
+        }
         try
         {
             await PayrollRepository.DeleteControlAsync(ctrl.ControlId);
@@ -935,77 +985,32 @@ else
         }
     }
 
-    // Company CRUD
-    private void EditCompany(CompanyItem comp)
+    // Confirmation Modal State
+    private bool showConfirmModal = false;
+    private string confirmControlName = "";
+    private ControlItem? pendingControlToDelete = null;
+
+    private void PromptDeleteControl(ControlItem ctrl)
     {
-        editCompanyId = comp.CompanyId;
-        companyNameInput = comp.CompanyName;
-        companyAddressInput = comp.Address ?? string.Empty;
-        companyRemarksInput = comp.Remarks ?? string.Empty;
-        companyLogoPathInput = comp.CompanyLogoPath ?? string.Empty;
-        successMessage = null;
-        errorMessage = null;
+        pendingControlToDelete = ctrl;
+        confirmControlName = ctrl.ControlName;
+        showConfirmModal = true;
     }
 
-    private void ResetCompanyForm()
+    private void CancelDelete()
     {
-        editCompanyId = 0;
-        companyNameInput = string.Empty;
-        companyAddressInput = string.Empty;
-        companyRemarksInput = string.Empty;
-        companyLogoPathInput = string.Empty;
-        successMessage = null;
-        errorMessage = null;
+        showConfirmModal = false;
+        pendingControlToDelete = null;
     }
 
-    private async Task SaveCompany()
+    private async Task ExecuteConfirmedDelete()
     {
-        if (!hasAccess) return;
-        if (string.IsNullOrWhiteSpace(companyNameInput))
+        if (pendingControlToDelete != null)
         {
-            errorMessage = "Company Name is required.";
-            return;
-        }
-
-        try
-        {
-            if (editCompanyId > 0)
-            {
-                await PayrollRepository.UpdateCompanyAsync(editCompanyId, companyNameInput.Trim(), companyAddressInput.Trim(), companyRemarksInput.Trim(), companyLogoPathInput.Trim());
-                successMessage = "Company information updated successfully.";
-            }
-            else
-            {
-                await PayrollRepository.CreateCompanyAsync(companyNameInput.Trim(), companyAddressInput.Trim(), companyRemarksInput.Trim(), companyLogoPathInput.Trim());
-                successMessage = "Company registered successfully in COMPANY table.";
-            }
-
-            ResetCompanyForm();
-            companies = await PayrollRepository.GetCompaniesAsync();
-            errorMessage = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to save company");
-            errorMessage = "Failed to save company: " + ex.Message;
-        }
-    }
-
-    private async Task DeleteCompany(CompanyItem comp)
-    {
-        if (!hasAccess) return;
-        try
-        {
-            await PayrollRepository.DeleteCompanyAsync(comp.CompanyId);
-            companies = await PayrollRepository.GetCompaniesAsync();
-            if (editCompanyId == comp.CompanyId) ResetCompanyForm();
-            successMessage = $"Company '{comp.CompanyName}' deleted successfully.";
-            errorMessage = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to delete company");
-            errorMessage = "Failed to delete company: " + ex.Message;
+            var ctrl = pendingControlToDelete;
+            showConfirmModal = false;
+            pendingControlToDelete = null;
+            await DeleteControl(ctrl);
         }
     }
 

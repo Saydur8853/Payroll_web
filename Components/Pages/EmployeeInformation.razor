@@ -6,6 +6,8 @@
 @inject IJSRuntime JS
 @inject ILogger<EmployeeInformation> Logger
 @using EmployeeModel = TG.Payroll.Web.Models.EmployeeInformation
+@using System.Text
+@using System.Globalization
 
 <div class="emp-page-container">
     <!-- Header Section -->
@@ -110,6 +112,24 @@
                 <button type="button" class="emp-btn emp-btn-secondary" @onclick="NewEmployee" title="Start new employee entry">
                     <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
                     <span>New Entry</span>
+                </button>
+
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="OpenImportModal" title="Import Employees from CSV">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                    <span>Import CSV</span>
+                </button>
+
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="ExportEmployeesToCsv" disabled="@isExporting" title="Export all employees to CSV">
+                    @if (isExporting)
+                    {
+                        <span class="emp-spinner-dot"></span>
+                        <span>Exporting...</span>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                        <span>Export CSV</span>
+                    }
                 </button>
 
                 @if (isEdit && !isUnlocked)
@@ -1041,6 +1061,248 @@
     </aside>
 }
 
+<!-- CSV Import Modal Dialog -->
+@if (showImportModal)
+{
+    <div class="emp-modal-backdrop animate-fade">
+        <section class="emp-modal emp-import-modal animate-scale" role="dialog" aria-modal="true">
+            <div class="emp-modal-header">
+                <div class="emp-modal-icon-wrap import-icon" style="background: #eff6ff; color: #2563eb;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                </div>
+                <div>
+                    <h2>Import Employees from CSV</h2>
+                    <p>Upload a CSV file to register or update employee information in bulk.</p>
+                </div>
+                <button type="button" class="emp-modal-close" @onclick="CloseImportModal" disabled="@isImporting">✕</button>
+            </div>
+
+            <div class="emp-modal-body emp-import-modal-body">
+                @if (importParseError is not null)
+                {
+                    <div class="emp-alert emp-alert-danger animate-in" style="margin: 0;">
+                        <span>⚠️ @importParseError</span>
+                    </div>
+                }
+
+                @if (parsedImportRows.Count == 0 && importResultSummary is null)
+                {
+                    <!-- Initial State: Hero Dropzone -->
+                    <label class="emp-import-dropzone">
+                        <div class="emp-dropzone-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        </div>
+                        <h3 class="emp-dropzone-title">Click here to browse or drag & drop CSV file</h3>
+                        <p class="emp-dropzone-desc">Accepts UTF-8 encoded .CSV spreadsheet files (up to 15MB)</p>
+                        <span class="emp-btn-browse-file">
+                            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            <span>Select CSV File</span>
+                        </span>
+                        <InputFile OnChange="HandleCsvFileSelected" accept=".csv,text/csv" disabled="@isImporting" style="display:none;" />
+                    </label>
+
+                    <!-- Dual Cards: Template & Instructions -->
+                    <div class="emp-import-info-grid">
+                        <div class="emp-import-card">
+                            <div>
+                                <div class="emp-import-card-header">
+                                    <div class="emp-import-card-icon template">
+                                        <svg viewBox="0 0 20 20" fill="currentColor" style="width:18px;height:18px"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="emp-import-card-title">Need the standard format?</h4>
+                                        <p class="emp-import-card-text">Download our pre-structured template containing all 40 columns and sample data.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="emp-btn-download-tpl" @onclick="DownloadCsvTemplate">
+                                <svg viewBox="0 0 20 20" fill="currentColor" style="width:15px;height:15px"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                <span>Download Sample Template CSV</span>
+                            </button>
+                        </div>
+
+                        <div class="emp-import-card">
+                            <div class="emp-import-card-header">
+                                <div class="emp-import-card-icon info">
+                                    <svg viewBox="0 0 20 20" fill="currentColor" style="width:18px;height:18px"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                                </div>
+                                <div>
+                                    <h4 class="emp-import-card-title">Import Best Practices</h4>
+                                    <p class="emp-import-card-text">Important guidelines for a smooth bulk import:</p>
+                                </div>
+                            </div>
+                            <ul class="emp-import-hints">
+                                <li>Matching <strong>Emp Code</strong> updates existing employee profiles.</li>
+                                <li>Bangla Unicode text (e.g. নাম, ঠিকানা) is fully supported.</li>
+                                <li>Departments, Lines, and Designations auto-map by name.</li>
+                            </ul>
+                        </div>
+                    </div>
+                }
+                else if (parsedImportRows.Count > 0)
+                {
+                    <!-- Active File Toolbar -->
+                    <div class="emp-active-file-bar">
+                        <div class="emp-file-info-group">
+                            <div class="emp-file-icon">
+                                <svg viewBox="0 0 20 20" fill="currentColor" style="width:20px;height:20px"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+                            </div>
+                            <div>
+                                <span class="emp-file-name">@(selectedImportFileName ?? "Uploaded File")</span>
+                                <span class="emp-file-count-badge">@parsedImportRows.Count rows loaded</span>
+                            </div>
+                        </div>
+
+                        <div class="emp-file-actions">
+                            <label class="emp-btn-change-file">
+                                <svg viewBox="0 0 20 20" fill="currentColor" style="width:14px;height:14px"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                                <span>Change File</span>
+                                <InputFile OnChange="HandleCsvFileSelected" accept=".csv,text/csv" disabled="@isImporting" style="display:none;" />
+                            </label>
+                            <button type="button" class="emp-btn-clear-file" @onclick="() => parsedImportRows.Clear()" disabled="@isImporting" title="Clear loaded file">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Filter Pills & Options -->
+                    <div class="emp-import-summary-bar">
+                        <div class="emp-import-pills">
+                            <button type="button" class="emp-filter-pill @(importFilterTab == "all" ? "is-active" : "")" @onclick='() => importFilterTab = "all"'>
+                                All (<strong>@parsedImportRows.Count</strong>)
+                            </button>
+                            <button type="button" class="emp-filter-pill is-new @(importFilterTab == "new" ? "is-active" : "")" @onclick='() => importFilterTab = "new"'>
+                                New (<strong>@parsedImportRows.Count(r => r.IsValid && !r.IsExistingInDb)</strong>)
+                            </button>
+                            <button type="button" class="emp-filter-pill is-update @(importFilterTab == "update" ? "is-active" : "")" @onclick='() => importFilterTab = "update"'>
+                                Update (<strong>@parsedImportRows.Count(r => r.IsValid && r.IsExistingInDb)</strong>)
+                            </button>
+                            @if (parsedImportRows.Any(r => !r.IsValid))
+                            {
+                                <button type="button" class="emp-filter-pill is-error @(importFilterTab == "error" ? "is-active" : "")" @onclick='() => importFilterTab = "error"'>
+                                    Errors (<strong>@parsedImportRows.Count(r => !r.IsValid)</strong>)
+                                </button>
+                            }
+                        </div>
+
+                        <div class="emp-import-options">
+                            <label class="emp-checkbox-label">
+                                <input type="checkbox" @bind="updateExistingEmployees" />
+                                <span>Update existing employees if code matches</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Preview Data Table -->
+                    <div class="emp-import-table-wrap">
+                        <table class="emp-import-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45px;">#</th>
+                                    <th style="width: 100px;">Emp Code</th>
+                                    <th style="width: 180px;">Name</th>
+                                    <th style="width: 140px;">Department</th>
+                                    <th style="width: 140px;">Designation</th>
+                                    <th style="width: 110px;">Joining</th>
+                                    <th style="width: 100px; text-align: right;">Gross</th>
+                                    <th style="width: 80px; text-align: center;">Status</th>
+                                    <th>Action / Validation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in FilteredImportRows)
+                                {
+                                    <tr class="@(!row.IsValid ? "is-row-invalid" : (row.IsExistingInDb ? "is-row-update" : "is-row-new"))">
+                                        <td class="col-dim">@row.RowIndex</td>
+                                        <td><strong>@row.Employee.EmployeeCode</strong></td>
+                                        <td>
+                                            <div>@row.Employee.EmployeeName</div>
+                                            @if (!string.IsNullOrEmpty(row.Employee.BanglaEmployeeName))
+                                            {
+                                                <small style="color:#64748b;">@row.Employee.BanglaEmployeeName</small>
+                                            }
+                                        </td>
+                                        <td>@row.DisplayDepartment</td>
+                                        <td>@row.DisplayDesignation</td>
+                                        <td>@row.Employee.DateOfJoining.ToString("dd-MMM-yyyy")</td>
+                                        <td style="text-align: right; font-weight: 700; color: #047857;">৳ @row.Employee.Gross.ToString("N0")</td>
+                                        <td style="text-align: center;">
+                                            <span class="emp-age-pill">@row.Employee.EmployeeStatus</span>
+                                        </td>
+                                        <td>
+                                            @if (!row.IsValid)
+                                            {
+                                                <span class="emp-badge-tag is-err">❌ @row.ErrorMessage</span>
+                                            }
+                                            else if (row.IsExistingInDb)
+                                            {
+                                                <span class="emp-badge-tag is-upd">🔄 @(updateExistingEmployees ? "Will Update Existing" : "Will Skip")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="emp-badge-tag is-new">✨ Will Insert New</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                @if (importResultSummary is not null)
+                {
+                    <div class="emp-import-result-box animate-in">
+                        <div class="emp-result-header">
+                            <svg viewBox="0 0 20 20" fill="currentColor" style="width:20px;height:20px"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                            <span>Import Completed Successfully</span>
+                        </div>
+                        <div class="emp-result-stats">
+                            <span>Total Rows: <strong>@importResultSummary.TotalRows</strong></span>
+                            <span>Inserted: <strong style="color: #059669;">@importResultSummary.InsertedCount</strong></span>
+                            <span>Updated: <strong style="color: #2563eb;">@importResultSummary.UpdatedCount</strong></span>
+                            <span>Skipped: <strong style="color: #d97706;">@importResultSummary.SkippedCount</strong></span>
+                            @if (importResultSummary.FailedCount > 0)
+                            {
+                                <span>Failed: <strong style="color: #dc2626;">@importResultSummary.FailedCount</strong></span>
+                            }
+                        </div>
+                        @if (importResultSummary.ErrorMessages.Count > 0)
+                        {
+                            <ul class="emp-result-errors">
+                                @foreach (var err in importResultSummary.ErrorMessages.Take(5))
+                                {
+                                    <li>@err</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="emp-modal-footer">
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="CloseImportModal" disabled="@isImporting">Close</button>
+                @if (parsedImportRows.Count > 0 && importResultSummary is null)
+                {
+                    var readyCount = parsedImportRows.Count(r => r.IsValid && (!r.IsExistingInDb || updateExistingEmployees));
+                    <button type="button" class="emp-btn emp-btn-primary" @onclick="ExecuteImportAsync" disabled="@(isImporting || readyCount == 0)">
+                        @if (isImporting)
+                        {
+                            <span class="emp-spinner-dot"></span>
+                            <span>Importing Employees...</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span>Commit Import (@readyCount Records)</span>
+                        }
+                    </button>
+                }
+            </div>
+        </section>
+    </div>
+}
+
 @code {
     private EmployeeModel employee = new();
     private string searchEmployeeCode = string.Empty;
@@ -1071,6 +1333,281 @@
     private double unlockHintX;
     private double unlockHintY;
     private int toastVersion;
+
+    private bool isExporting;
+    private bool isImporting;
+    private bool showImportModal;
+    private string? selectedImportFileName;
+    private string? importParseError;
+    private string importFilterTab = "all";
+    private bool updateExistingEmployees = true;
+    private List<EmployeeImportRow> parsedImportRows = [];
+    private EmployeeImportResult? importResultSummary;
+
+    private IEnumerable<EmployeeImportRow> FilteredImportRows => importFilterTab switch
+    {
+        "new" => parsedImportRows.Where(r => r.IsValid && !r.IsExistingInDb),
+        "update" => parsedImportRows.Where(r => r.IsValid && r.IsExistingInDb),
+        "error" => parsedImportRows.Where(r => !r.IsValid),
+        _ => parsedImportRows
+    };
+
+    private void OpenImportModal()
+    {
+        showImportModal = true;
+        parsedImportRows.Clear();
+        selectedImportFileName = null;
+        importParseError = null;
+        importResultSummary = null;
+        importFilterTab = "all";
+    }
+
+    private void CloseImportModal()
+    {
+        if (isImporting) return;
+        showImportModal = false;
+        parsedImportRows.Clear();
+        selectedImportFileName = null;
+        importParseError = null;
+        importResultSummary = null;
+    }
+
+    private async Task ExportEmployeesToCsv()
+    {
+        isExporting = true;
+        try
+        {
+            var items = await EmployeeRepository.GetAllEmployeesForExportAsync();
+            var csv = EmployeeCsvHelper.BuildExportCsv(items);
+            var bytes = EmployeeCsvHelper.GetUtf8BomBytes(csv);
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = $"Employee_Information_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", filename, "text/csv;charset=utf-8;", base64);
+            ShowToast($"Exported {items.Count} employee records to CSV successfully.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to export employees CSV");
+            ShowToast($"Export failed: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+
+    private async Task DownloadCsvTemplate()
+    {
+        var csv = EmployeeCsvHelper.GenerateTemplateCsv(lookups);
+        var bytes = EmployeeCsvHelper.GetUtf8BomBytes(csv);
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", "Employee_Import_Template.csv", "text/csv;charset=utf-8;", base64);
+        ShowToast("Employee Import Template CSV downloaded.");
+    }
+
+    private async Task HandleCsvFileSelected(InputFileChangeEventArgs args)
+    {
+        importParseError = null;
+        parsedImportRows.Clear();
+        importResultSummary = null;
+
+        var file = args.File;
+        if (file is null) return;
+        selectedImportFileName = file.Name;
+
+        try
+        {
+            using var stream = file.OpenReadStream(15_000_000);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            var content = await reader.ReadToEndAsync();
+
+            var parsedGrid = EmployeeCsvHelper.ParseCsv(content);
+            if (parsedGrid.Count < 2)
+            {
+                importParseError = "The CSV file must contain a header row and at least one data row.";
+                return;
+            }
+
+            var headers = parsedGrid[0];
+            var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < headers.Count; i++)
+            {
+                var h = EmployeeCsvHelper.NormalizeHeaderName(headers[i]);
+                if (!string.IsNullOrEmpty(h) && !headerMap.ContainsKey(h))
+                {
+                    headerMap[h] = i;
+                }
+            }
+
+            for (int r = 1; r < parsedGrid.Count; r++)
+            {
+                var rowData = parsedGrid[r];
+                if (rowData.Count == 0 || rowData.All(string.IsNullOrWhiteSpace)) continue;
+
+                var importRow = new EmployeeImportRow { RowIndex = r };
+                var emp = new EmployeeModel();
+
+                emp.EmployeeCode = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Emp Code", "EmployeeCode", "Code", "EMP_CODE");
+                emp.EmployeeName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Name", "EmployeeName", "Employee Name", "EMP_NAME");
+                emp.BanglaEmployeeName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Bangla Name", "BanglaEmployeeName", "BANG_EMP_NAME", "নাম");
+                emp.ErpCode = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "ERP Code", "ErpCode", "ERP_CODE");
+
+                var unitVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Unit", "UnitName", "UNIT_ID");
+                var catVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Category", "CategoryName", "EmployeeType", "EMP_CATEGORY_ID");
+                var deptVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Department", "DepartmentName", "DEPARTMENT_ID");
+                var secVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Section", "SectionName", "SECTION_ID");
+                var lineVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Line", "LineName", "Group", "LINE_ID");
+                var desigVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Designation", "DesignationName", "DESIGNATION_ID");
+                var shiftVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Shift", "ShiftName", "SHIFT_ID");
+                var ruleVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Salary Rule", "SalaryRule", "Rule", "RULE_ID");
+                var floorVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Floor", "FloorName", "FLOOR_ID");
+
+                emp.UnitId = ResolveLookupId(unitVal, lookups.Units);
+                emp.CategoryId = ResolveLookupId(catVal, lookups.Categories);
+                emp.DepartmentId = ResolveLookupId(deptVal, lookups.Departments);
+                emp.SectionId = ResolveLookupId(secVal, lookups.Sections);
+                emp.LineId = ResolveLookupId(lineVal, lookups.Lines);
+                emp.DesignationId = ResolveLookupId(desigVal, lookups.Designations);
+                emp.ShiftId = ResolveLookupId(shiftVal, lookups.Shifts);
+                emp.SalaryRuleId = ResolveLookupId(ruleVal, lookups.SalaryRules);
+                emp.FloorId = ResolveLookupId(floorVal, lookups.Floors);
+
+                importRow.DisplayUnit = lookups.Units.FirstOrDefault(u => u.Id == emp.UnitId)?.Name ?? unitVal;
+                importRow.DisplayDepartment = lookups.Departments.FirstOrDefault(d => d.Id == emp.DepartmentId)?.Name ?? deptVal;
+                importRow.DisplayDesignation = lookups.Designations.FirstOrDefault(d => d.Id == emp.DesignationId)?.Name ?? desigVal;
+
+                var dojVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Joining Date", "DateOfJoining", "Joining", "DATE_OF_JOINING");
+                if (EmployeeCsvHelper.TryParseFlexibleDate(dojVal, out var parsedDoj))
+                {
+                    emp.DateOfJoining = parsedDoj;
+                }
+                else
+                {
+                    emp.DateOfJoining = DateTime.Today;
+                }
+
+                var dobVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Date of Birth", "DateOfBirth", "DOB", "DATE_OF_BIRTH");
+                if (EmployeeCsvHelper.TryParseFlexibleDate(dobVal, out var parsedDob))
+                {
+                    emp.DateOfBirth = parsedDob;
+                }
+
+                var grossVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Gross", "GrossSalary", "Salary", "GROSS").Replace(",", "");
+                if (decimal.TryParse(grossVal, NumberStyles.Any, CultureInfo.InvariantCulture, out var g) ||
+                    decimal.TryParse(grossVal, NumberStyles.Any, CultureInfo.CurrentCulture, out g))
+                {
+                    emp.Gross = Math.Max(0, g);
+                }
+
+                var statusVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Status", "EmployeeStatus", "EMP_STATUS");
+                emp.EmployeeStatus = string.IsNullOrWhiteSpace(statusVal) ? "Active" : statusVal;
+
+                emp.Gender = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Gender", "Sex", "SEX");
+                if (string.IsNullOrWhiteSpace(emp.Gender)) emp.Gender = "MALE";
+
+                emp.Religion = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Religion", "RELIGION");
+                if (string.IsNullOrWhiteSpace(emp.Religion)) emp.Religion = "ISLAM";
+
+                emp.MaritalStatus = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Marital Status", "MaritalStatus", "MARITAL_STATUS");
+                if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = "SINGLE";
+
+                emp.BloodGroup = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Blood Group", "BloodGroup", "BLOOD_GROUP");
+                emp.NationalId = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "NID", "NationalId", "National ID", "NATIONAL_ID");
+                emp.ContactNo = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Contact No", "ContactNo", "Mobile", "Phone", "CONTACT_NO");
+                emp.Email = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Email", "E-Mail", "E_MAIL");
+                emp.FatherName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Father Name", "FatherName", "FATHER_NAME");
+                emp.BanglaFatherName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Bangla Father Name", "BanglaFatherName", "BANG_FATHER_NAME");
+                emp.MotherName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Mother Name", "MotherName", "MOTHER_NAME");
+                emp.BanglaMotherName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Bangla Mother Name", "BanglaMotherName", "BANG_MOTHER_NAME");
+                emp.SpouseName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Spouse Name", "Husband Name", "SpouseName", "HUSBAND_NAME");
+                emp.BanglaSpouseName = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Bangla Spouse Name", "BanglaSpouseName", "BANG_HUSBAND_NAME");
+
+                emp.PresentVillage = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Present Village", "PresentVillage", "PRESENT_VILL");
+                emp.PresentPost = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Present Post", "PresentPost", "PRESENT_HOUSE");
+                emp.PresentPoliceStation = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Present PS", "Present Thana", "PresentPoliceStation", "PRESENT_PS");
+                emp.PresentDistrict = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Present District", "PresentDistrict", "PRESENT_DIST");
+
+                emp.PermanentVillage = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Permanent Village", "PermanentVillage", "PARMANENT_HOUSE");
+                emp.PermanentPost = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Permanent Post", "PermanentPost", "PARMANENT_VILL");
+                emp.PermanentPoliceStation = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Permanent PS", "Permanent Thana", "PermanentPoliceStation", "PARMANENT_PS");
+                emp.PermanentDistrict = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Permanent District", "PermanentDistrict", "PARMANENT_DIST");
+
+                var otVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "OverTime", "OT", "OVER_TIME");
+                emp.OverTime = otVal.Equals("Y", StringComparison.OrdinalIgnoreCase) || otVal.Equals("Yes", StringComparison.OrdinalIgnoreCase) || otVal.Equals("True", StringComparison.OrdinalIgnoreCase);
+
+                var trVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Transport", "TRANSPORT");
+                emp.Transport = trVal.Equals("Y", StringComparison.OrdinalIgnoreCase) || trVal.Equals("Yes", StringComparison.OrdinalIgnoreCase) || trVal.Equals("True", StringComparison.OrdinalIgnoreCase);
+
+                var weekendVal = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Weekend", "WEEKEND");
+                emp.Weekend = string.IsNullOrWhiteSpace(weekendVal) ? "N/A" : weekendVal;
+
+                emp.ProximityNo = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Proximity No", "ProximityNo", "RFID", "PROXIMITY_NO");
+                emp.EmployeeGrade = EmployeeCsvHelper.ExtractCsvVal(rowData, headerMap, "Grade", "EmployeeGrade", "EMP_GRADE");
+
+                // Validation
+                if (string.IsNullOrWhiteSpace(emp.EmployeeCode))
+                {
+                    importRow.IsValid = false;
+                    importRow.ErrorMessage = "Employee Code is required.";
+                }
+                else if (string.IsNullOrWhiteSpace(emp.EmployeeName))
+                {
+                    importRow.IsValid = false;
+                    importRow.ErrorMessage = "Employee Name is required.";
+                }
+                else
+                {
+                    importRow.IsExistingInDb = await EmployeeRepository.EmployeeCodeExistsAsync(emp.EmployeeCode);
+                    importRow.Action = importRow.IsExistingInDb ? "Update" : "Insert";
+                }
+
+                importRow.Employee = emp;
+                parsedImportRows.Add(importRow);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to parse CSV file");
+            importParseError = $"Failed to parse CSV file: {ex.Message}";
+        }
+    }
+
+    private async Task ExecuteImportAsync()
+    {
+        var readyRows = parsedImportRows.Where(r => r.IsValid && (!r.IsExistingInDb || updateExistingEmployees)).ToList();
+        if (readyRows.Count == 0) return;
+
+        isImporting = true;
+        try
+        {
+            var userId = int.TryParse(HttpContextAccessor.HttpContext?.Session.GetString("UserId"), out var value) ? value : 1;
+            importResultSummary = await EmployeeRepository.BulkImportEmployeesAsync(readyRows, updateExistingEmployees, userId);
+            ShowToast($"Import complete: {importResultSummary.InsertedCount} inserted, {importResultSummary.UpdatedCount} updated, {importResultSummary.FailedCount} failed.");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Import process error");
+            importParseError = $"Import execution error: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private static int ResolveLookupId(string value, List<LookupOption> options)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return options.FirstOrDefault()?.Id ?? 0;
+        var trimmed = value.Trim();
+        if (int.TryParse(trimmed, out var id) && options.Any(o => o.Id == id))
+        {
+            return id;
+        }
+        var match = options.FirstOrDefault(o => o.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+                 ?? options.FirstOrDefault(o => o.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
+        return match?.Id ?? options.FirstOrDefault()?.Id ?? 0;
+    }
 
     private bool isEdit => employee.EmployeeId > 0;
     private bool canEdit => !isEdit || isUnlocked;

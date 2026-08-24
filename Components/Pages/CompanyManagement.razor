@@ -1,0 +1,548 @@
+@page "/CompanyManagement"
+@page "/CompanySetup"
+@page "/SetCompany"
+@using System.Web
+@inject IHttpContextAccessor HttpContextAccessor
+@inject PayrollRepository PayrollRepository
+@inject NavigationManager Navigation
+@inject ILogger<CompanyManagement> Logger
+
+<PageTitle>Company Management - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="skeleton-shell">
+        <div class="skeleton-header-card">
+            <div class="skeleton-box" style="width:200px;height:12px;"></div>
+            <div class="skeleton-box" style="width:340px;height:32px;border-radius:8px;"></div>
+            <div class="skeleton-box" style="width:500px;height:14px;"></div>
+        </div>
+
+        <div class="skeleton-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="skeleton-box" style="width:240px;height:22px;"></div>
+                <div class="skeleton-box" style="width:110px;height:24px;border-radius:20px;"></div>
+            </div>
+            <div class="skeleton-grid">
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:130px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:120px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:110px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+                <div class="skeleton-field">
+                    <div class="skeleton-box" style="width:100px;height:13px;"></div>
+                    <div class="skeleton-box" style="width:100%;height:40px;border-radius:8px;"></div>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+                <div class="skeleton-box" style="width:80px;height:38px;border-radius:8px;"></div>
+                <div class="skeleton-box" style="width:140px;height:38px;border-radius:8px;"></div>
+            </div>
+        </div>
+
+        <div class="skeleton-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div class="skeleton-box" style="width:200px;height:20px;"></div>
+                <div class="skeleton-box" style="width:220px;height:36px;border-radius:8px;"></div>
+            </div>
+            <div class="skeleton-table-wrap">
+                <table class="skeleton-table">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;"><div class="skeleton-box" style="width:40px;height:12px;"></div></th>
+                            <th style="width:80px;"><div class="skeleton-box" style="width:50px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:150px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:100px;height:12px;"></div></th>
+                            <th><div class="skeleton-box" style="width:120px;height:12px;"></div></th>
+                            <th style="width:120px;"><div class="skeleton-box" style="width:80px;height:12px;"></div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < 3; i++)
+                        {
+                            <tr>
+                                <td><div class="skeleton-box" style="width:36px;height:18px;border-radius:12px;"></div></td>
+                                <td><div class="skeleton-box" style="width:56px;height:32px;border-radius:6px;"></div></td>
+                                <td>
+                                    <div class="skeleton-box" style="width:180px;height:14px;display:block;margin-bottom:4px;"></div>
+                                    <div class="skeleton-box" style="width:110px;height:11px;"></div>
+                                </td>
+                                <td><div class="skeleton-box" style="width:60px;height:18px;border-radius:12px;"></div></td>
+                                <td><div class="skeleton-box" style="width:140px;height:14px;"></div></td>
+                                <td>
+                                    <div style="display:flex;gap:6px;">
+                                        <div class="skeleton-box" style="width:40px;height:24px;border-radius:6px;"></div>
+                                        <div class="skeleton-box" style="width:45px;height:24px;border-radius:6px;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to manage Company settings.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">ORGANIZATIONAL SETUP & MASTER DATA</p>
+            <h1>Company Management</h1>
+            <p>Configure corporate entity profiles, bilingual identity, addresses, and official brand logo.</p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="database-error management-message">@errorMessage</div>
+    }
+
+    @if (showConfirmModal)
+    {
+        <div class="modal-backdrop-overlay" @onclick="CancelDelete">
+            <div class="confirm-delete-modal" @onclick:stopPropagation>
+                <div class="confirm-modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3>Are you sure?</h3>
+                <p>Do you really want to delete company <strong>@confirmCompanyName</strong>? This action cannot be undone.</p>
+                <div class="confirm-modal-actions">
+                    <button type="button" class="btn-cancel-modal" @onclick="CancelDelete">No, Cancel</button>
+                    <button type="button" class="btn-confirm-delete" @onclick="ExecuteConfirmedDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="control-entry-shell">
+        <!-- Company Form Card -->
+        <section class="control-form-panel company-setup-panel">
+            <div class="company-card-header">
+                <div class="company-card-header-left">
+                    <div class="company-badge-icon">🏢</div>
+                    <div>
+                        <h2>@(editCompanyId > 0 ? $"Edit Company (ID: #{editCompanyId})" : "Register New Company")</h2>
+                        <p>Configure corporate entity profiles, bilingual identity, short codes, and official brand logo.</p>
+                    </div>
+                </div>
+                @if (editCompanyId > 0)
+                {
+                    <div class="company-id-pill">
+                        <span class="pulse-dot"></span>
+                        Editing Company #@editCompanyId
+                    </div>
+                }
+            </div>
+
+            <form @onsubmit="SaveCompany" @onsubmit:preventDefault class="company-modern-form">
+                <div class="company-form-layout">
+                    <!-- Left 2 columns: Text Information Fields -->
+                    <div class="company-fields-main">
+                        <div class="company-grid-row">
+                            <label class="company-form-group">
+                                <span class="company-form-label">Company Name (English) <strong class="req-star">*</strong></span>
+                                <input @bind="companyNameInput" placeholder="e.g. Noman Terry Towel Mills Ltd" required maxlength="150" class="company-form-input" />
+                            </label>
+
+                            <label class="company-form-group">
+                                <span class="company-form-label">কোম্পানির নাম (বাংলায়)</span>
+                                <input @bind="companyNameBangInput" placeholder="যেমনঃ নোমান টেরি টাওয়েল মিলস লিঃ" maxlength="200" class="company-form-input emp-bangla-input" />
+                            </label>
+                        </div>
+
+                        <div class="company-grid-row">
+                            <label class="company-form-group">
+                                <span class="company-form-label">Short Name / Acronym</span>
+                                <input @bind="companyShortNameInput" placeholder="e.g. NTTML" maxlength="50" class="company-form-input" />
+                            </label>
+
+                            <label class="company-form-group">
+                                <span class="company-form-label">Remarks / Unit Code</span>
+                                <input @bind="companyRemarksInput" placeholder="e.g. RDIL" maxlength="100" class="company-form-input" />
+                            </label>
+                        </div>
+
+                        <div class="company-grid-row">
+                            <label class="company-form-group">
+                                <span class="company-form-label">Address (English)</span>
+                                <input @bind="companyAddressInput" placeholder="e.g. Vawal, Mirzapur, Gazipur" maxlength="200" class="company-form-input" />
+                            </label>
+
+                            <label class="company-form-group">
+                                <span class="company-form-label">ঠিকানা (বাংলায়)</span>
+                                <input @bind="companyAddressBangInput" placeholder="যেমনঃ ভাওয়াল, মির্জাপুর, গাজীপুর" maxlength="250" class="company-form-input emp-bangla-input" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Dedicated Company Logo Branding Box -->
+                    <div class="company-logo-sidebar">
+                        <div class="company-logo-card">
+                            <span class="company-logo-card-title">Official Brand Logo</span>
+                            <div class="company-logo-preview-area">
+                                @if (!string.IsNullOrWhiteSpace(CurrentFormLogoPreview))
+                                {
+                                    <div class="company-logo-display">
+                                        <img src="@CurrentFormLogoPreview" alt="Company Logo" class="company-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+                                        <div class="company-logo-placeholder-icon" style="display:none;">🏢</div>
+                                    </div>
+                                    <button type="button" class="company-logo-remove-btn" @onclick="ClearFormLogo" title="Remove logo">
+                                        <svg viewBox="0 0 20 20" fill="currentColor" style="width:13px;height:13px;"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                        <span>Remove</span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="company-logo-placeholder-box">
+                                        <span class="placeholder-emoji">🏢</span>
+                                        <span class="placeholder-hint">No logo uploaded yet</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="company-logo-actions">
+                                <label class="company-upload-btn">
+                                    <svg viewBox="0 0 20 20" fill="currentColor" style="width:15px;height:15px;"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                                    <span>@(companyLogoBytes is not null && companyLogoBytes.Length > 0 ? "Change Logo Image" : "Upload Logo Image")</span>
+                                    <InputFile OnChange="HandleLogoUpload" accept="image/*" style="display:none;" />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-form-actions">
+                    <button type="button" class="btn-secondary-action" @onclick="ResetCompanyForm">
+                        <span>Reset Form</span>
+                    </button>
+                    <button type="submit" class="btn-primary-action @(editCompanyId > 0 ? "btn-update-mode" : "")">
+                        <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
+                        <span>@(editCompanyId > 0 ? $"Update Company (ID: #{editCompanyId})" : "Save Company")</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Registered Companies Table -->
+        <section class="control-list-panel">
+            <div class="control-list-header">
+                <div>
+                    <h2>Registered Companies</h2>
+                    <p>Total @companies.Count company entities in database `COMPANY` table.</p>
+                </div>
+            </div>
+
+            <div class="controls-table-container">
+                <table class="controls-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">ID</th>
+                            <th style="width: 70px; text-align: center;">Logo</th>
+                            <th>Company Name</th>
+                            <th>Short Name</th>
+                            <th>Remarks</th>
+                            <th>Address</th>
+                            <th style="width: 110px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var comp in companies)
+                        {
+                            <tr>
+                                <td><span class="id-badge">#@comp.CompanyId</span></td>
+                                <td style="text-align: center;">
+                                    @if (!string.IsNullOrWhiteSpace(comp.LogoSource))
+                                    {
+                                        <div class="comp-table-logo-wrap">
+                                            <img src="@comp.LogoSource" alt="Logo" class="comp-table-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+                                            <span class="comp-table-logo-fallback" style="display:none;">🏢</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="comp-table-logo-fallback">🏢</span>
+                                    }
+                                </td>
+                                <td>
+                                    <strong class="ctrl-name-text">@comp.CompanyName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(comp.CompanyNameBang))
+                                    {
+                                        <div class="emp-bangla-text"><small>@comp.CompanyNameBang</small></div>
+                                    }
+                                </td>
+                                <td><span class="type-pill">@(string.IsNullOrWhiteSpace(comp.ShortName) ? "-" : comp.ShortName)</span></td>
+                                <td><span style="color:#64748b;font-size:12.5px;">@(string.IsNullOrWhiteSpace(comp.Remarks) ? "-" : comp.Remarks)</span></td>
+                                <td>
+                                    <div style="color:#334155;font-size:12.5px;">@(string.IsNullOrWhiteSpace(comp.Address) ? "-" : comp.Address)</div>
+                                    @if (!string.IsNullOrWhiteSpace(comp.AddressBang))
+                                    {
+                                        <div class="emp-bangla-text" style="font-size:11.5px;"><small>@comp.AddressBang</small></div>
+                                    }
+                                </td>
+                                <td style="text-align: center;">
+                                    <div class="table-action-group">
+                                        <button type="button" class="action-btn btn-edit-ctrl" @onclick="() => EditCompany(comp)" title="Edit company">
+                                            Edit
+                                        </button>
+                                        <button type="button" class="action-btn btn-delete-ctrl" @onclick="() => PromptDeleteCompany(comp)" title="Delete company">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private bool loaded;
+    private bool hasAccess;
+    private int currentUserId;
+    private string currentUserName = "User";
+    private bool currentUserIsAdmin;
+    private List<CompanyItem> companies = [];
+
+    // Company Form State
+    private int editCompanyId;
+    private string companyNameInput = string.Empty;
+    private string companyNameBangInput = string.Empty;
+    private string companyShortNameInput = string.Empty;
+    private string companyAddressInput = string.Empty;
+    private string companyAddressBangInput = string.Empty;
+    private string companyRemarksInput = string.Empty;
+    private byte[]? companyLogoBytes;
+    private bool formLogoRemoved;
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out currentUserId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        currentUserName = session?.GetString("UserName") ?? "User";
+        currentUserIsAdmin = session?.GetString("IsAdmin") == "1";
+
+        var menu = await PayrollRepository.GetMenuAsync(currentUserId);
+        hasAccess = currentUserIsAdmin || HasModuleRecursive(menu, item => 
+            item.Id == 115 || 
+            item.Name.Equals("Set Company", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Equals("Company Setup", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Equals("Company", StringComparison.OrdinalIgnoreCase) || 
+            item.Name.Equals("Company Information", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasAccess)
+        {
+            loaded = true;
+            return;
+        }
+
+        companies = await PayrollRepository.GetCompaniesAsync();
+        loaded = true;
+    }
+
+    private static bool HasModuleRecursive(IEnumerable<NavigationItem> items, Func<NavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item)) return true;
+            if (item.Children.Count > 0 && HasModuleRecursive(item.Children, predicate)) return true;
+        }
+        return false;
+    }
+
+    private string? CurrentFormLogoPreview
+    {
+        get
+        {
+            if (formLogoRemoved) return null;
+            if (companyLogoBytes is not null && companyLogoBytes.Length > 0)
+            {
+                var mime = companyLogoBytes.Length > 3 && companyLogoBytes[0] == 0x89 && companyLogoBytes[1] == 0x50 && companyLogoBytes[2] == 0x4E && companyLogoBytes[3] == 0x47
+                    ? "image/png"
+                    : (companyLogoBytes.Length > 2 && companyLogoBytes[0] == 0xFF && companyLogoBytes[1] == 0xD8 && companyLogoBytes[2] == 0xFF ? "image/jpeg" : "image/png");
+                return $"data:{mime};base64,{Convert.ToBase64String(companyLogoBytes)}";
+            }
+            if (editCompanyId > 0)
+            {
+                var comp = companies.FirstOrDefault(c => c.CompanyId == editCompanyId);
+                if (comp?.CompanyLogo is not null && comp.CompanyLogo.Length > 0)
+                {
+                    return $"/api/company/logo/{editCompanyId}?t={DateTime.UtcNow.Ticks}";
+                }
+            }
+            return null;
+        }
+    }
+
+    private void ClearFormLogo()
+    {
+        companyLogoBytes = null;
+        formLogoRemoved = true;
+    }
+
+    private async Task HandleLogoUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file is not null)
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                companyLogoBytes = ms.ToArray();
+                formLogoRemoved = false;
+                errorMessage = null;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Logo upload failed: " + ex.Message;
+        }
+    }
+
+    private void EditCompany(CompanyItem comp)
+    {
+        editCompanyId = comp.CompanyId;
+        companyNameInput = comp.CompanyName;
+        companyNameBangInput = comp.CompanyNameBang ?? string.Empty;
+        companyShortNameInput = comp.ShortName ?? string.Empty;
+        companyAddressInput = comp.Address ?? string.Empty;
+        companyAddressBangInput = comp.AddressBang ?? string.Empty;
+        companyRemarksInput = comp.Remarks ?? string.Empty;
+        companyLogoBytes = comp.CompanyLogo;
+        formLogoRemoved = false;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private void ResetCompanyForm()
+    {
+        editCompanyId = 0;
+        companyNameInput = string.Empty;
+        companyNameBangInput = string.Empty;
+        companyShortNameInput = string.Empty;
+        companyAddressInput = string.Empty;
+        companyAddressBangInput = string.Empty;
+        companyRemarksInput = string.Empty;
+        companyLogoBytes = null;
+        formLogoRemoved = false;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task SaveCompany()
+    {
+        if (!hasAccess) return;
+        if (string.IsNullOrWhiteSpace(companyNameInput))
+        {
+            errorMessage = "Company Name is required.";
+            return;
+        }
+
+        try
+        {
+            var logoToSave = formLogoRemoved ? null : companyLogoBytes;
+
+            if (editCompanyId > 0)
+            {
+                await PayrollRepository.UpdateCompanyAsync(editCompanyId, companyNameInput.Trim(), companyNameBangInput.Trim(), companyShortNameInput.Trim(), companyAddressInput.Trim(), companyAddressBangInput.Trim(), companyRemarksInput.Trim(), "", logoToSave);
+                successMessage = "Company information updated successfully.";
+            }
+            else
+            {
+                await PayrollRepository.CreateCompanyAsync(companyNameInput.Trim(), companyNameBangInput.Trim(), companyShortNameInput.Trim(), companyAddressInput.Trim(), companyAddressBangInput.Trim(), companyRemarksInput.Trim(), "", logoToSave);
+                successMessage = "Company registered successfully in COMPANY table.";
+            }
+
+            ResetCompanyForm();
+            companies = await PayrollRepository.GetCompaniesAsync();
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save company");
+            errorMessage = "Failed to save company: " + ex.Message;
+        }
+    }
+
+    // Confirmation Modal State
+    private bool showConfirmModal = false;
+    private string confirmCompanyName = "";
+    private CompanyItem? pendingCompanyToDelete = null;
+
+    private void PromptDeleteCompany(CompanyItem comp)
+    {
+        pendingCompanyToDelete = comp;
+        confirmCompanyName = comp.CompanyName;
+        showConfirmModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        showConfirmModal = false;
+        pendingCompanyToDelete = null;
+    }
+
+    private async Task ExecuteConfirmedDelete()
+    {
+        if (pendingCompanyToDelete != null)
+        {
+            var comp = pendingCompanyToDelete;
+            showConfirmModal = false;
+            pendingCompanyToDelete = null;
+            await DeleteCompany(comp);
+        }
+    }
+
+    private async Task DeleteCompany(CompanyItem comp)
+    {
+        if (!hasAccess) return;
+        try
+        {
+            await PayrollRepository.DeleteCompanyAsync(comp.CompanyId);
+            if (editCompanyId == comp.CompanyId)
+            {
+                ResetCompanyForm();
+            }
+            companies = await PayrollRepository.GetCompaniesAsync();
+            successMessage = $"Company '{comp.CompanyName}' removed successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete company");
+            errorMessage = "Failed to delete company: " + ex.Message;
+        }
+    }
+}

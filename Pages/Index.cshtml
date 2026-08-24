@@ -1,33 +1,92 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Sign in";
+    ViewData["Title"] = "Sign in - " + (Model.Company?.CompanyName ?? "TG Payroll");
 }
 
 <main class="login-page">
+    <div class="login-backdrop-glow"></div>
+    <div class="login-backdrop-glow login-backdrop-glow-secondary"></div>
+
     <section class="login-panel">
-        <div class="brand-mark">TG</div>
-        <p class="eyebrow">TALHA GROUP</p>
-        <h1>Payroll Portal</h1>
-        <p class="login-copy">Sign in to access your payroll dashboard.</p>
+        <div class="login-brand-header">
+            @if (Model.Company?.CompanyLogo != null && Model.Company.CompanyLogo.Length > 0)
+            {
+                <div class="login-logo-container">
+                    <img src="data:image/png;base64,@Convert.ToBase64String(Model.Company.CompanyLogo)" 
+                         alt="@(Model.Company?.CompanyName ?? "Company Logo")" 
+                         class="login-brand-logo" />
+                </div>
+            }
+            else
+            {
+                <div class="brand-mark login-brand-mark">
+                    @(string.IsNullOrWhiteSpace(Model.Company?.ShortName) ? "TG" : Model.Company.ShortName)
+                </div>
+            }
+
+            <div class="login-company-meta">
+                <span class="eyebrow login-eyebrow">
+                    @(string.IsNullOrWhiteSpace(Model.Company?.CompanyName) ? "TALHA GROUP" : Model.Company.CompanyName)
+                </span>
+                @if (!string.IsNullOrWhiteSpace(Model.Company?.CompanyNameBang))
+                {
+                    <span class="login-bangla-title">@Model.Company.CompanyNameBang</span>
+                }
+            </div>
+            
+            <h1 class="login-title">Payroll Portal</h1>
+            <p class="login-copy">Enterprise Workforce & Payroll Management</p>
+        </div>
 
         <form method="post" class="login-form">
             <div asp-validation-summary="ModelOnly" class="validation-message"></div>
             @if (Model.ErrorMessage is not null)
             {
-                <div class="validation-message">@Model.ErrorMessage</div>
+                <div class="validation-message login-error-alert">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    <span>@Model.ErrorMessage</span>
+                </div>
             }
-            <label asp-for="Username">Username</label>
-            <input asp-for="Username" autocomplete="username" autofocus />
-            <label asp-for="Password">Password</label>
-            <div class="password-field">
-                <input asp-for="Password" type="password" autocomplete="current-password" />
-                <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" title="Show password">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
-                </button>
+
+            <div class="login-input-group">
+                <label asp-for="Username" class="login-input-label">Username</label>
+                <div class="login-input-wrap">
+                    <span class="login-input-icon">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                    </span>
+                    <input asp-for="Username" placeholder="Enter username" autocomplete="username" autofocus class="login-text-input" />
+                </div>
             </div>
-            <button type="submit">Sign in</button>
+
+            <div class="login-input-group">
+                <label asp-for="Password" class="login-input-label">Password</label>
+                <div class="login-input-wrap password-field">
+                    <span class="login-input-icon">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                    </span>
+                    <input asp-for="Password" type="password" placeholder="Enter password" autocomplete="current-password" class="login-text-input" />
+                    <button type="button" class="password-toggle login-password-toggle" data-password-toggle aria-label="Show password" title="Show password">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.4 12s3.5-6 9.6-6 9.6 6 9.6 6-3.5 6-9.6 6-9.6-6-9.6-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="login-submit-btn">
+                <span>Sign in to Dashboard</span>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
         </form>
-        <p class="login-footer">NG NTTML payroll data</p>
+
+        <div class="login-footer-meta">
+            @if (!string.IsNullOrWhiteSpace(Model.Company?.Address))
+            {
+                <p class="login-address-text">@Model.Company.Address</p>
+            }
+            <div class="login-badge-row">
+                <span class="login-beta-pill">v1.0.0 BETA</span>
+                <span class="login-db-pill">Oracle ERP Connected</span>
+            </div>
+        </div>
     </section>
 </main>

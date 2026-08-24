@@ -297,15 +297,14 @@
                                            value="@(emp.DateOfJoining?.ToString("yyyy-MM-dd"))" 
                                            @onchange="@((ChangeEventArgs e) => OnDojChanged(emp, e.Value?.ToString()))" />
                                 </td>
-                                <td style="text-align: right;">
+                                <td style="text-align: right; min-width: 130px;">
                                     <div class="emp-salary-input-wrap">
                                         <span class="curr-sym">৳</span>
-                                        <input type="number" 
+                                        <input type="text" 
+                                               inputmode="numeric"
                                                class="emp-inline-input emp-inline-number" 
-                                               value="@emp.Gross" 
-                                               @onchange="@((ChangeEventArgs e) => OnGrossChanged(emp, e.Value?.ToString()))" 
-                                               min="0" 
-                                               step="100" />
+                                               value="@(emp.Gross % 1 == 0 ? ((long)emp.Gross).ToString() : emp.Gross.ToString("0.##"))" 
+                                               @onchange="@((ChangeEventArgs e) => OnGrossChanged(emp, e.Value?.ToString()))" />
                                     </div>
                                 </td>
                                 <td class="col-center">
@@ -507,7 +506,16 @@
 
     private void OnGrossChanged(EmployeeStatusItem item, string? val)
     {
-        if (decimal.TryParse(val, out var parsedGross))
+        var cleaned = (val ?? string.Empty).Replace(",", "").Trim();
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            item.Gross = 0;
+            CheckIfEdited(item);
+            return;
+        }
+
+        if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedGross) ||
+            decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.CurrentCulture, out parsedGross))
         {
             item.Gross = Math.Max(0, parsedGross);
             CheckIfEdited(item);

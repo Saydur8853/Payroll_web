@@ -92,7 +92,7 @@ public sealed class EmployeeRepository
             EmployeeCode = Text(reader, "EMP_CODE"),
             EmployeeName = Text(reader, "EMP_NAME"),
             ErpCode = Text(reader, "ERP_CODE"),
-            BanglaEmployeeName = Text(reader, "BANG_EMP_NAME"),
+            BanglaEmployeeName = TextBangla(reader, "BANG_EMP_NAME"),
             UnitId = Int(reader, "UNIT_ID"), CategoryId = Int(reader, "EMP_CATEGORY_ID"),
             DepartmentId = Int(reader, "DEPARTMENT_ID"), SectionId = Int(reader, "SECTION_ID"),
             LineId = Int(reader, "LINE_ID"), DesignationId = Int(reader, "DESIGNATION_ID"),
@@ -103,28 +103,28 @@ public sealed class EmployeeRepository
             StatusReason = Text(reader, "STS_REASONS"), Weekend = Text(reader, "WEEKEND", "N/A"),
             ProximityNo = Text(reader, "PROXIMITY_NO"), LicenseNo = Text(reader, "LICENSE_NO"),
             EmployeeGrade = Text(reader, "EMP_GRADE"), BeneficiaryName = Text(reader, "BENEFICIARY_NAME"),
-            BanglaBeneficiaryName = Text(reader, "BANG_BENEFICIARY_NAME"),
+            BanglaBeneficiaryName = TextBangla(reader, "BANG_BENEFICIARY_NAME"),
             RelationWithBeneficiary = Text(reader, "RELATION_WITH_BENEFICIARY"),
             BankAccountType = Text(reader, "BANK_ACCOUNT_HOLDER", "N"), AccountNo = Text(reader, "ACCOUNT_NO"),
             Transport = Yes(reader, "TRANSPORT"), OverTime = Yes(reader, "OVER_TIME"),
             QuarterHolder = Yes(reader, "LUNCH"), TaxHolder = Yes(reader, "TAX_HOLDER"),
             EarnLeaveHolder = Yes(reader, "EL_HOLDER"), EarnLeaveSegment = Text(reader, "EL_SEGMENT", "None"),
-            FatherName = Text(reader, "FATHER_NAME"), BanglaFatherName = Text(reader, "BANG_FATHER_NAME"),
-            MotherName = Text(reader, "MOTHER_NAME"), BanglaMotherName = Text(reader, "BANG_MOTHER_NAME"),
-            SpouseName = Text(reader, "HUSBAND_NAME"), BanglaSpouseName = Text(reader, "BANG_HUSBAND_NAME"),
+            FatherName = Text(reader, "FATHER_NAME"), BanglaFatherName = TextBangla(reader, "BANG_FATHER_NAME"),
+            MotherName = Text(reader, "MOTHER_NAME"), BanglaMotherName = TextBangla(reader, "BANG_MOTHER_NAME"),
+            SpouseName = Text(reader, "HUSBAND_NAME"), BanglaSpouseName = TextBangla(reader, "BANG_HUSBAND_NAME"),
             Gender = Text(reader, "SEX", "MALE"), Religion = Text(reader, "RELIGION", "ISLAM"),
             MaritalStatus = Text(reader, "MARITAL_STATUS", "SINGLE"), BloodGroup = Text(reader, "BLOOD_GROUP"),
             NationalId = Text(reader, "NATIONAL_ID"), ContactNo = Text(reader, "CONTACT_NO"),
             Email = Text(reader, "E_MAIL"), Education = Text(reader, "EDUCATION"),
             EmploymentExperience = Text(reader, "EMPLOYEMENT"), Remarks = Text(reader, "REMARKS"),
-            PresentVillage = Text(reader, "PRESENT_VILL"), BanglaPresentVillage = Text(reader, "BANG_PRESENT_VILL"),
-            PresentPost = Text(reader, "PRESENT_HOUSE"), BanglaPresentPost = Text(reader, "BANG_PRESENT_POST"),
-            PresentPoliceStation = Text(reader, "PRESENT_PS"), BanglaPresentPoliceStation = Text(reader, "BANG_PRESENT_PS"),
-            PresentDistrict = Text(reader, "PRESENT_DIST"), BanglaPresentDistrict = Text(reader, "BANG_PRESENT_DIST"),
-            PermanentVillage = Text(reader, "PARMANENT_HOUSE"), BanglaPermanentVillage = Text(reader, "BANG_PERMANENT_VILL"),
-            PermanentPost = Text(reader, "PARMANENT_VILL"), BanglaPermanentPost = Text(reader, "BANG_PERMANENT_POST"),
-            PermanentPoliceStation = Text(reader, "PARMANENT_PS"), BanglaPermanentPoliceStation = Text(reader, "BANG_PERMANENT_PS"),
-            PermanentDistrict = Text(reader, "PARMANENT_DIST"), BanglaPermanentDistrict = Text(reader, "BANG_PERMANENT_DIST"),
+            PresentVillage = Text(reader, "PRESENT_VILL"), BanglaPresentVillage = TextBangla(reader, "BANG_PRESENT_VILL"),
+            PresentPost = Text(reader, "PRESENT_HOUSE"), BanglaPresentPost = TextBangla(reader, "BANG_PRESENT_POST"),
+            PresentPoliceStation = Text(reader, "PRESENT_PS"), BanglaPresentPoliceStation = TextBangla(reader, "BANG_PRESENT_PS"),
+            PresentDistrict = Text(reader, "PRESENT_DIST"), BanglaPresentDistrict = TextBangla(reader, "BANG_PRESENT_DIST"),
+            PermanentVillage = Text(reader, "PARMANENT_HOUSE"), BanglaPermanentVillage = TextBangla(reader, "BANG_PERMANENT_VILL"),
+            PermanentPost = Text(reader, "PARMANENT_VILL"), BanglaPermanentPost = TextBangla(reader, "BANG_PERMANENT_POST"),
+            PermanentPoliceStation = Text(reader, "PARMANENT_PS"), BanglaPermanentPoliceStation = TextBangla(reader, "BANG_PERMANENT_PS"),
+            PermanentDistrict = Text(reader, "PARMANENT_DIST"), BanglaPermanentDistrict = TextBangla(reader, "BANG_PERMANENT_DIST"),
             Contractual = Yes(reader, "CONTRACTUAL"), NomineeCellNo = Text(reader, "NOMINEE_CELL_NO")
         };
         await reader.DisposeAsync();
@@ -844,6 +844,12 @@ public sealed class EmployeeRepository
         catch { return fallback; }
     }
 
+    private static string TextBangla(OracleDataReader reader, string name, string fallback = "")
+    {
+        var raw = Text(reader, name, fallback);
+        return EmployeeCsvHelper.EnsureUnicode(raw);
+    }
+
     private static DateTime? Date(OracleDataReader reader, string name)
     {
         try
@@ -889,7 +895,7 @@ public sealed class EmployeeRepository
     public async Task<List<EmployeeStatusItem>> GetEmployeeStatusListAsync(EmployeeStatusFilter filter, CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder(@"
-            SELECT A.EMP_ID, A.EMP_CODE, A.EMP_NAME, 
+            SELECT A.EMP_ID, A.EMP_CODE, A.EMP_NAME, A.BANG_EMP_NAME,
                    NVL(C.DESIGNATION_NAME, '') DESIGNATION_NAME, 
                    NVL(G.DEPARTMENT_NAME, '') DEPARTMENT_NAME,
                    NVL(E.SECTION_NAME, '') SECTION_NAME,
@@ -986,6 +992,7 @@ public sealed class EmployeeRepository
                 EmployeeId = Int(reader, "EMP_ID"),
                 EmployeeCode = Text(reader, "EMP_CODE"),
                 EmployeeName = Text(reader, "EMP_NAME"),
+                BanglaEmployeeName = TextBangla(reader, "BANG_EMP_NAME"),
                 DesignationName = Text(reader, "DESIGNATION_NAME"),
                 DepartmentName = Text(reader, "DEPARTMENT_NAME"),
                 SectionName = Text(reader, "SECTION_NAME"),
@@ -1055,4 +1062,751 @@ public sealed class EmployeeRepository
             throw;
         }
     }
+
+    public async Task<List<EmployeeExportItem>> GetAllEmployeesForExportAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT O.EMP_ID, O.EMP_CODE, O.EMP_NAME, O.BANG_EMP_NAME, O.ERP_CODE,
+                   NVL((SELECT U.UNIT_NAME FROM UNIT U WHERE U.UNIT_ID = O.UNIT_ID), '') AS UNIT_NAME,
+                   NVL((SELECT C.EMP_CATEGORY_NAME FROM EMP_CATEGORY C WHERE C.EMP_CATEGORY_ID = O.EMP_CATEGORY_ID), '') AS CATEGORY_NAME,
+                   NVL((SELECT D.DEPARTMENT_NAME FROM DEPARTMENT D WHERE D.DEPARTMENT_ID = O.DEPARTMENT_ID), '') AS DEPARTMENT_NAME,
+                   NVL((SELECT S.SECTION_NAME FROM SECTION S WHERE S.SECTION_ID = O.SECTION_ID), '') AS SECTION_NAME,
+                   NVL((SELECT L.LINE_NAME FROM LINE L WHERE L.LINE_ID = O.LINE_ID), '') AS LINE_NAME,
+                   NVL((SELECT DG.DESIGNATION_NAME FROM DESIGNATION DG WHERE DG.DESIGNATION_ID = O.DESIGNATION_ID), '') AS DESIGNATION_NAME,
+                   NVL((SELECT SH.SHIFT_NAME FROM SHIFT_INFO SH WHERE SH.SHIFT_ID = O.SHIFT_ID), '') AS SHIFT_NAME,
+                   NVL((SELECT R.RULE_NAME FROM SALARY_RULE_INFO R WHERE R.RULE_ID = O.RULE_ID), '') AS RULE_NAME,
+                   NVL((SELECT FL.FLOOR_NAME FROM FLOOR FL WHERE FL.FLOOR_ID = O.FLOOR_ID), '') AS FLOOR_NAME,
+                   O.DATE_OF_JOINING, O.CLOSE_DATE, NVL(O.GROSS, 0) GROSS, NVL(O.EMP_STATUS, 'Active') EMP_STATUS,
+                   O.STS_REASONS, O.WEEKEND, O.PROXIMITY_NO, O.LICENSE_NO, O.EMP_GRADE,
+                   NVL(O.TRANSPORT,'N') TRANSPORT, NVL(O.OVER_TIME,'N') OVER_TIME,
+                   NVL(O.LUNCH,'N') LUNCH, NVL(O.TAX_HOLDER,'N') TAX_HOLDER,
+                   NVL(O.EL_HOLDER,'N') EL_HOLDER,
+                   P.FATHER_NAME, P.BANG_FATHER_NAME, P.MOTHER_NAME, P.BANG_MOTHER_NAME,
+                   P.HUSBAND_NAME, P.BANG_HUSBAND_NAME, P.DATE_OF_BIRTH,
+                   P.SEX, P.RELIGION, P.MARITAL_STATUS, P.BLOOD_GROUP, P.NATIONAL_ID,
+                   P.CONTACT_NO, P.E_MAIL, P.EDUCATION, P.EMPLOYEMENT, P.REMARKS,
+                   P.PRESENT_VILL, P.BANG_PRESENT_VILL, P.PRESENT_HOUSE, P.BANG_PRESENT_POST,
+                   P.PRESENT_PS, P.BANG_PRESENT_PS, P.PRESENT_DIST, P.BANG_PRESENT_DIST,
+                   P.PARMANENT_HOUSE, P.BANG_PERMANENT_VILL, P.PARMANENT_VILL, P.BANG_PERMANENT_POST,
+                   P.PARMANENT_PS, P.BANG_PERMANENT_PS, P.PARMANENT_DIST, P.BANG_PERMANENT_DIST,
+                   NVL(P.CONTRACTUAL,'N') CONTRACTUAL
+            FROM EMP_OFFICIAL O, EMP_PERSONAL P
+            WHERE O.EMP_ID = P.EMP_ID(+)
+            ORDER BY O.EMP_CODE
+            """;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new OracleCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var list = new List<EmployeeExportItem>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(new EmployeeExportItem
+            {
+                EmployeeId = Int(reader, "EMP_ID"),
+                EmployeeCode = Text(reader, "EMP_CODE"),
+                EmployeeName = Text(reader, "EMP_NAME"),
+                BanglaEmployeeName = TextBangla(reader, "BANG_EMP_NAME"),
+                ErpCode = Text(reader, "ERP_CODE"),
+                UnitName = Text(reader, "UNIT_NAME"),
+                CategoryName = Text(reader, "CATEGORY_NAME"),
+                DepartmentName = Text(reader, "DEPARTMENT_NAME"),
+                SectionName = Text(reader, "SECTION_NAME"),
+                LineName = Text(reader, "LINE_NAME"),
+                DesignationName = Text(reader, "DESIGNATION_NAME"),
+                ShiftName = Text(reader, "SHIFT_NAME"),
+                SalaryRuleName = Text(reader, "RULE_NAME"),
+                FloorName = Text(reader, "FLOOR_NAME"),
+                DateOfJoining = Date(reader, "DATE_OF_JOINING"),
+                CloseDate = Date(reader, "CLOSE_DATE"),
+                Gross = Decimal(reader, "GROSS"),
+                EmployeeStatus = Text(reader, "EMP_STATUS", "Active"),
+                StatusReason = Text(reader, "STS_REASONS"),
+                Weekend = Text(reader, "WEEKEND", "N/A"),
+                ProximityNo = Text(reader, "PROXIMITY_NO"),
+                LicenseNo = Text(reader, "LICENSE_NO"),
+                EmployeeGrade = Text(reader, "EMP_GRADE"),
+                Transport = Text(reader, "TRANSPORT") == "Y",
+                OverTime = Text(reader, "OVER_TIME") == "Y",
+                QuarterHolder = Text(reader, "LUNCH") == "Y",
+                TaxHolder = Text(reader, "TAX_HOLDER") == "Y",
+                EarnLeaveHolder = Text(reader, "EL_HOLDER") == "Y",
+                FatherName = Text(reader, "FATHER_NAME"),
+                BanglaFatherName = TextBangla(reader, "BANG_FATHER_NAME"),
+                MotherName = Text(reader, "MOTHER_NAME"),
+                BanglaMotherName = TextBangla(reader, "BANG_MOTHER_NAME"),
+                SpouseName = Text(reader, "HUSBAND_NAME"),
+                BanglaSpouseName = TextBangla(reader, "BANG_HUSBAND_NAME"),
+                DateOfBirth = Date(reader, "DATE_OF_BIRTH"),
+                Gender = Text(reader, "SEX", "MALE"),
+                Religion = Text(reader, "RELIGION", "ISLAM"),
+                MaritalStatus = Text(reader, "MARITAL_STATUS", "SINGLE"),
+                BloodGroup = Text(reader, "BLOOD_GROUP"),
+                NationalId = Text(reader, "NATIONAL_ID"),
+                ContactNo = Text(reader, "CONTACT_NO"),
+                Email = Text(reader, "E_MAIL"),
+                Education = Text(reader, "EDUCATION"),
+                EmploymentExperience = Text(reader, "EMPLOYEMENT"),
+                Remarks = Text(reader, "REMARKS"),
+                PresentVillage = Text(reader, "PRESENT_VILL"),
+                BanglaPresentVillage = TextBangla(reader, "BANG_PRESENT_VILL"),
+                PresentPost = Text(reader, "PRESENT_HOUSE"),
+                BanglaPresentPost = TextBangla(reader, "BANG_PRESENT_POST"),
+                PresentPoliceStation = Text(reader, "PRESENT_PS"),
+                BanglaPresentPoliceStation = TextBangla(reader, "BANG_PRESENT_PS"),
+                PresentDistrict = Text(reader, "PRESENT_DIST"),
+                BanglaPresentDistrict = TextBangla(reader, "BANG_PRESENT_DIST"),
+                PermanentVillage = Text(reader, "PARMANENT_HOUSE"),
+                BanglaPermanentVillage = TextBangla(reader, "BANG_PERMANENT_VILL"),
+                PermanentPost = Text(reader, "PARMANENT_VILL"),
+                BanglaPermanentPost = TextBangla(reader, "BANG_PERMANENT_POST"),
+                PermanentPoliceStation = Text(reader, "PARMANENT_PS"),
+                BanglaPermanentPoliceStation = TextBangla(reader, "BANG_PERMANENT_PS"),
+                PermanentDistrict = Text(reader, "PARMANENT_DIST"),
+                BanglaPermanentDistrict = TextBangla(reader, "BANG_PERMANENT_DIST"),
+                Contractual = Text(reader, "CONTRACTUAL") == "Y"
+            });
+        }
+        return list;
+    }
+
+    public async Task<EmployeeImportResult> BulkImportEmployeesAsync(
+        List<EmployeeImportRow> importRows,
+        bool updateExisting,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = new EmployeeImportResult { TotalRows = importRows.Count };
+
+        foreach (var row in importRows)
+        {
+            if (!row.IsValid)
+            {
+                result.SkippedCount++;
+                continue;
+            }
+
+            try
+            {
+                var emp = row.Employee;
+                var existing = await GetEmployeeByCodeAsync(emp.EmployeeCode, cancellationToken);
+                if (existing is not null)
+                {
+                    if (updateExisting)
+                    {
+                        emp.EmployeeId = existing.EmployeeId;
+                        if (emp.Photo is null) emp.Photo = existing.Photo;
+                        if (emp.Signature is null) emp.Signature = existing.Signature;
+                        await SaveEmployeeAsync(emp, userId, assignNextEmployeeCode: false, cancellationToken);
+                        result.UpdatedCount++;
+                    }
+                    else
+                    {
+                        result.SkippedCount++;
+                    }
+                }
+                else
+                {
+                    emp.EmployeeId = 0;
+                    await SaveEmployeeAsync(emp, userId, assignNextEmployeeCode: false, cancellationToken);
+                    result.InsertedCount++;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.FailedCount++;
+                result.ErrorMessages.Add($"Row #{row.RowIndex} ({row.Employee.EmployeeCode}): {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<(List<EmployeeDetailItem> Items, int TotalCount)> GetEmployeeDetailsPagedAsync(
+        EmployeeDetailFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        var sbWhere = new StringBuilder(" WHERE 1 = 1 ");
+        var parameters = new List<OracleParameter>();
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            sbWhere.Append(" AND (UPPER(O.EMP_CODE) LIKE :search OR UPPER(O.EMP_NAME) LIKE :search OR UPPER(NVL(O.ERP_CODE,' ')) LIKE :search OR UPPER(NVL(P.CONTACT_NO,' ')) LIKE :search OR UPPER(NVL(P.NATIONAL_ID,' ')) LIKE :search) ");
+            parameters.Add(new OracleParameter("search", $"%{filter.Search.Trim().ToUpperInvariant()}%"));
+        }
+
+        if (filter.UnitId.HasValue && filter.UnitId.Value > 0)
+        {
+            sbWhere.Append(" AND O.UNIT_ID = :unitId ");
+            parameters.Add(new OracleParameter("unitId", filter.UnitId.Value));
+        }
+
+        if (filter.CategoryId.HasValue && filter.CategoryId.Value > 0)
+        {
+            sbWhere.Append(" AND O.EMP_CATEGORY_ID = :categoryId ");
+            parameters.Add(new OracleParameter("categoryId", filter.CategoryId.Value));
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId.Value > 0)
+        {
+            sbWhere.Append(" AND O.DEPARTMENT_ID = :departmentId ");
+            parameters.Add(new OracleParameter("departmentId", filter.DepartmentId.Value));
+        }
+
+        if (filter.SectionId.HasValue && filter.SectionId.Value > 0)
+        {
+            sbWhere.Append(" AND O.SECTION_ID = :sectionId ");
+            parameters.Add(new OracleParameter("sectionId", filter.SectionId.Value));
+        }
+
+        if (filter.DesignationId.HasValue && filter.DesignationId.Value > 0)
+        {
+            sbWhere.Append(" AND O.DESIGNATION_ID = :designationId ");
+            parameters.Add(new OracleParameter("designationId", filter.DesignationId.Value));
+        }
+
+        if (filter.ShiftId.HasValue && filter.ShiftId.Value > 0)
+        {
+            sbWhere.Append(" AND O.SHIFT_ID = :shiftId ");
+            parameters.Add(new OracleParameter("shiftId", filter.ShiftId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status) && !filter.Status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            sbWhere.Append(" AND UPPER(O.EMP_STATUS) = :status ");
+            parameters.Add(new OracleParameter("status", filter.Status.Trim().ToUpperInvariant()));
+        }
+
+        var whereClause = sbWhere.ToString();
+
+        var countSql = $"""
+            SELECT COUNT(*)
+            FROM EMP_OFFICIAL O
+            LEFT JOIN EMP_PERSONAL P ON O.EMP_ID = P.EMP_ID
+            {whereClause}
+            """;
+
+        var pageNumber = Math.Max(1, filter.Page);
+        var pageSize = Math.Max(10, filter.PageSize);
+        var startRow = (pageNumber - 1) * pageSize + 1;
+        var endRow = pageNumber * pageSize;
+
+        var dataSql = $"""
+            SELECT * FROM (
+                SELECT a.*, ROWNUM rnum FROM (
+                    SELECT O.EMP_ID, O.EMP_CODE, O.EMP_NAME, O.BANG_EMP_NAME, O.ERP_CODE,
+                           NVL(U.UNIT_NAME, '') AS UNIT_NAME,
+                           NVL(C.EMP_CATEGORY_NAME, '') AS CATEGORY_NAME,
+                           NVL(D.DEPARTMENT_NAME, '') AS DEPARTMENT_NAME,
+                           NVL(S.SECTION_NAME, '') AS SECTION_NAME,
+                           NVL(L.LINE_NAME, '') AS LINE_NAME,
+                           NVL(DES.DESIGNATION_NAME, '') AS DESIGNATION_NAME,
+                           NVL(SH.SHIFT_NAME, '') AS SHIFT_NAME,
+                           NVL(R.RULE_NAME, '') AS RULE_NAME,
+                           NVL(F.FLOOR_NAME, '') AS FLOOR_NAME,
+                           O.DATE_OF_JOINING, P.DATE_OF_BIRTH, NVL(O.GROSS, 0) AS GROSS,
+                           NVL(O.EMP_STATUS, 'Active') AS EMP_STATUS,
+                           NVL(P.SEX, '') AS SEX, NVL(P.RELIGION, '') AS RELIGION,
+                           NVL(P.MARITAL_STATUS, '') AS MARITAL_STATUS, NVL(P.BLOOD_GROUP, '') AS BLOOD_GROUP,
+                           NVL(P.NATIONAL_ID, '') AS NATIONAL_ID, NVL(P.CONTACT_NO, '') AS CONTACT_NO,
+                           NVL(P.E_MAIL, '') AS E_MAIL, NVL(P.FATHER_NAME, '') AS FATHER_NAME,
+                           NVL(P.MOTHER_NAME, '') AS MOTHER_NAME, NVL(P.HUSBAND_NAME, '') AS SPOUSE_NAME,
+                           NVL(P.PRESENT_VILL, '') || DECODE(P.PRESENT_DIST, NULL, '', ', ' || P.PRESENT_DIST) AS PRESENT_ADDRESS,
+                           NVL(P.PARMANENT_VILL, '') || DECODE(P.PARMANENT_DIST, NULL, '', ', ' || P.PARMANENT_DIST) AS PERM_ADDRESS,
+                           NVL(O.PRIORITY, 0) AS PRIORITY, NVL(O.EMP_GRADE, '') AS EMP_GRADE
+                    FROM EMP_OFFICIAL O
+                    LEFT JOIN EMP_PERSONAL P ON O.EMP_ID = P.EMP_ID
+                    LEFT JOIN UNIT U ON O.UNIT_ID = U.UNIT_ID
+                    LEFT JOIN EMP_CATEGORY C ON O.EMP_CATEGORY_ID = C.EMP_CATEGORY_ID
+                    LEFT JOIN DEPARTMENT D ON O.DEPARTMENT_ID = D.DEPARTMENT_ID
+                    LEFT JOIN SECTION S ON O.SECTION_ID = S.SECTION_ID
+                    LEFT JOIN LINE L ON O.LINE_ID = L.LINE_ID
+                    LEFT JOIN DESIGNATION DES ON O.DESIGNATION_ID = DES.DESIGNATION_ID
+                    LEFT JOIN SHIFT_INFO SH ON O.SHIFT_ID = SH.SHIFT_ID
+                    LEFT JOIN SALARY_RULE R ON O.RULE_ID = R.RULE_ID
+                    LEFT JOIN FLOOR_INFO F ON O.FLOOR_ID = F.FLOOR_ID
+                    {whereClause}
+                    ORDER BY NVL(O.PRIORITY, 9999), O.EMP_CODE ASC
+                ) a WHERE ROWNUM <= {endRow}
+            ) WHERE rnum >= {startRow}
+            """;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        int totalCount = 0;
+        await using (var cmdCount = new OracleCommand(countSql, connection) { BindByName = true })
+        {
+            foreach (var p in parameters)
+                cmdCount.Parameters.Add(new OracleParameter(p.ParameterName, p.Value));
+
+            var countRes = await cmdCount.ExecuteScalarAsync(cancellationToken);
+            totalCount = Convert.ToInt32(countRes);
+        }
+
+        var list = new List<EmployeeDetailItem>();
+        await using (var cmdData = new OracleCommand(dataSql, connection) { BindByName = true })
+        {
+            foreach (var p in parameters)
+                cmdData.Parameters.Add(new OracleParameter(p.ParameterName, p.Value));
+
+            await using var reader = await cmdData.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                list.Add(new EmployeeDetailItem
+                {
+                    EmployeeId = Convert.ToInt32(reader["EMP_ID"]),
+                    EmployeeCode = Convert.ToString(reader["EMP_CODE"]) ?? string.Empty,
+                    EmployeeName = Convert.ToString(reader["EMP_NAME"]) ?? string.Empty,
+                    BanglaEmployeeName = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["BANG_EMP_NAME"])),
+                    ErpCode = Convert.ToString(reader["ERP_CODE"]) ?? string.Empty,
+                    UnitName = Convert.ToString(reader["UNIT_NAME"]) ?? string.Empty,
+                    CategoryName = Convert.ToString(reader["CATEGORY_NAME"]) ?? string.Empty,
+                    DepartmentName = Convert.ToString(reader["DEPARTMENT_NAME"]) ?? string.Empty,
+                    SectionName = Convert.ToString(reader["SECTION_NAME"]) ?? string.Empty,
+                    LineName = Convert.ToString(reader["LINE_NAME"]) ?? string.Empty,
+                    DesignationName = Convert.ToString(reader["DESIGNATION_NAME"]) ?? string.Empty,
+                    ShiftName = Convert.ToString(reader["SHIFT_NAME"]) ?? string.Empty,
+                    SalaryRuleName = Convert.ToString(reader["RULE_NAME"]) ?? string.Empty,
+                    FloorName = Convert.ToString(reader["FLOOR_NAME"]) ?? string.Empty,
+                    DateOfJoining = reader["DATE_OF_JOINING"] == DBNull.Value ? null : Convert.ToDateTime(reader["DATE_OF_JOINING"]),
+                    DateOfBirth = reader["DATE_OF_BIRTH"] == DBNull.Value ? null : Convert.ToDateTime(reader["DATE_OF_BIRTH"]),
+                    Gross = Convert.ToDecimal(reader["GROSS"]),
+                    EmployeeStatus = Convert.ToString(reader["EMP_STATUS"]) ?? "Active",
+                    Gender = Convert.ToString(reader["SEX"]) ?? string.Empty,
+                    Religion = Convert.ToString(reader["RELIGION"]) ?? string.Empty,
+                    MaritalStatus = Convert.ToString(reader["MARITAL_STATUS"]) ?? string.Empty,
+                    BloodGroup = Convert.ToString(reader["BLOOD_GROUP"]) ?? string.Empty,
+                    NationalId = Convert.ToString(reader["NATIONAL_ID"]) ?? string.Empty,
+                    ContactNo = Convert.ToString(reader["CONTACT_NO"]) ?? string.Empty,
+                    Email = Convert.ToString(reader["E_MAIL"]) ?? string.Empty,
+                    FatherName = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["FATHER_NAME"])),
+                    MotherName = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["MOTHER_NAME"])),
+                    SpouseName = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["SPOUSE_NAME"])),
+                    PresentAddress = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["PRESENT_ADDRESS"])),
+                    PermanentAddress = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["PERM_ADDRESS"])),
+                    Priority = Convert.ToInt32(reader["PRIORITY"]),
+                    EmployeeGrade = Convert.ToString(reader["EMP_GRADE"]) ?? string.Empty
+                });
+            }
+        }
+
+        return (list, totalCount);
+    }
+
+    public async Task<List<EmployeePriorityItem>> GetPriorityEmployeesAsync(
+        int? unitId,
+        int? departmentId,
+        int? sectionId,
+        int? designationId,
+        string? status,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var sbWhere = new StringBuilder(" WHERE 1 = 1 ");
+        var parameters = new List<OracleParameter>();
+
+        if (unitId.HasValue && unitId.Value > 0)
+        {
+            sbWhere.Append(" AND O.UNIT_ID = :unitId ");
+            parameters.Add(new OracleParameter("unitId", unitId.Value));
+        }
+
+        if (departmentId.HasValue && departmentId.Value > 0)
+        {
+            sbWhere.Append(" AND O.DEPARTMENT_ID = :departmentId ");
+            parameters.Add(new OracleParameter("departmentId", departmentId.Value));
+        }
+
+        if (sectionId.HasValue && sectionId.Value > 0)
+        {
+            sbWhere.Append(" AND O.SECTION_ID = :sectionId ");
+            parameters.Add(new OracleParameter("sectionId", sectionId.Value));
+        }
+
+        if (designationId.HasValue && designationId.Value > 0)
+        {
+            sbWhere.Append(" AND O.DESIGNATION_ID = :designationId ");
+            parameters.Add(new OracleParameter("designationId", designationId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            sbWhere.Append(" AND UPPER(O.EMP_STATUS) = :status ");
+            parameters.Add(new OracleParameter("status", status.Trim().ToUpperInvariant()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sbWhere.Append(" AND (UPPER(O.EMP_CODE) LIKE :search OR UPPER(O.EMP_NAME) LIKE :search) ");
+            parameters.Add(new OracleParameter("search", $"%{search.Trim().ToUpperInvariant()}%"));
+        }
+
+        var sql = $"""
+            SELECT O.EMP_ID, O.EMP_CODE, O.EMP_NAME, O.BANG_EMP_NAME,
+                   NVL(DES.DESIGNATION_NAME, '') AS DESIGNATION_NAME,
+                   NVL(D.DEPARTMENT_NAME, '') AS DEPARTMENT_NAME,
+                   NVL(S.SECTION_NAME, '') AS SECTION_NAME,
+                   NVL(U.UNIT_NAME, '') AS UNIT_NAME,
+                   NVL(O.EMP_STATUS, 'Active') AS EMP_STATUS,
+                   NVL(O.PRIORITY, 0) AS PRIORITY,
+                   NVL(DES.POSITION_PRIORITY, 0) AS POSITION_PRIORITY
+            FROM EMP_OFFICIAL O
+            LEFT JOIN DESIGNATION DES ON O.DESIGNATION_ID = DES.DESIGNATION_ID
+            LEFT JOIN DEPARTMENT D ON O.DEPARTMENT_ID = D.DEPARTMENT_ID
+            LEFT JOIN SECTION S ON O.SECTION_ID = S.SECTION_ID
+            LEFT JOIN UNIT U ON O.UNIT_ID = U.UNIT_ID
+            {sbWhere}
+            ORDER BY NVL(O.PRIORITY, 9999), NVL(DES.POSITION_PRIORITY, 9999), O.EMP_CODE ASC
+            """;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var cmd = new OracleCommand(sql, connection) { BindByName = true };
+        foreach (var p in parameters)
+            cmd.Parameters.Add(p);
+
+        var list = new List<EmployeePriorityItem>();
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var pVal = Convert.ToInt32(reader["PRIORITY"]);
+            list.Add(new EmployeePriorityItem
+            {
+                EmployeeId = Convert.ToInt32(reader["EMP_ID"]),
+                EmployeeCode = Convert.ToString(reader["EMP_CODE"]) ?? string.Empty,
+                EmployeeName = Convert.ToString(reader["EMP_NAME"]) ?? string.Empty,
+                BanglaEmployeeName = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["BANG_EMP_NAME"])),
+                DesignationName = Convert.ToString(reader["DESIGNATION_NAME"]) ?? string.Empty,
+                DepartmentName = Convert.ToString(reader["DEPARTMENT_NAME"]) ?? string.Empty,
+                SectionName = Convert.ToString(reader["SECTION_NAME"]) ?? string.Empty,
+                UnitName = Convert.ToString(reader["UNIT_NAME"]) ?? string.Empty,
+                EmployeeStatus = Convert.ToString(reader["EMP_STATUS"]) ?? "Active",
+                Priority = pVal,
+                InitialPriority = pVal,
+                PositionPriority = Convert.ToInt32(reader["POSITION_PRIORITY"])
+            });
+        }
+        return list;
+    }
+
+    public async Task SaveEmployeePrioritiesAsync(
+        List<(int EmployeeId, int Priority)> items,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            foreach (var (empId, priority) in items)
+            {
+                const string sql = "UPDATE EMP_OFFICIAL SET PRIORITY = :priority WHERE EMP_ID = :empId";
+                await using var cmd = new OracleCommand(sql, connection) { Transaction = transaction, BindByName = true };
+                cmd.Parameters.Add(new OracleParameter("priority", priority));
+                cmd.Parameters.Add(new OracleParameter("empId", empId));
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+            }
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<(List<EmployeeContactItem> Items, int TotalCount)> GetEmployeeContactsAsync(
+        string? search,
+        int? unitId,
+        int? departmentId,
+        int? sectionId,
+        string? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var sbWhere = new StringBuilder(" WHERE 1 = 1 ");
+        var parameters = new List<OracleParameter>();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sbWhere.Append(" AND (UPPER(O.EMP_CODE) LIKE :search OR UPPER(O.EMP_NAME) LIKE :search OR UPPER(NVL(P.CONTACT_NO, ' ')) LIKE :search OR UPPER(NVL(P.E_MAIL, ' ')) LIKE :search OR UPPER(NVL(P.EMRG_CELL_NO, ' ')) LIKE :search OR UPPER(NVL(O.REF_CELL_NO, ' ')) LIKE :search) ");
+            parameters.Add(new OracleParameter("search", $"%{search.Trim().ToUpperInvariant()}%"));
+        }
+
+        if (unitId.HasValue && unitId.Value > 0)
+        {
+            sbWhere.Append(" AND O.UNIT_ID = :unitId ");
+            parameters.Add(new OracleParameter("unitId", unitId.Value));
+        }
+
+        if (departmentId.HasValue && departmentId.Value > 0)
+        {
+            sbWhere.Append(" AND O.DEPARTMENT_ID = :departmentId ");
+            parameters.Add(new OracleParameter("departmentId", departmentId.Value));
+        }
+
+        if (sectionId.HasValue && sectionId.Value > 0)
+        {
+            sbWhere.Append(" AND O.SECTION_ID = :sectionId ");
+            parameters.Add(new OracleParameter("sectionId", sectionId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            sbWhere.Append(" AND UPPER(O.EMP_STATUS) = :status ");
+            parameters.Add(new OracleParameter("status", status.Trim().ToUpperInvariant()));
+        }
+
+        var whereClause = sbWhere.ToString();
+        var countSql = $"""
+            SELECT COUNT(*)
+            FROM EMP_OFFICIAL O
+            LEFT JOIN EMP_PERSONAL P ON O.EMP_ID = P.EMP_ID
+            {whereClause}
+            """;
+
+        var pageNumber = Math.Max(1, page);
+        var pSize = Math.Max(10, pageSize);
+        var startRow = (pageNumber - 1) * pSize + 1;
+        var endRow = pageNumber * pSize;
+
+        var dataSql = $"""
+            SELECT * FROM (
+                SELECT a.*, ROWNUM rnum FROM (
+                    SELECT O.EMP_ID, O.EMP_CODE, O.EMP_NAME, O.BANG_EMP_NAME,
+                           NVL(DES.DESIGNATION_NAME, '') AS DESIGNATION_NAME,
+                           NVL(D.DEPARTMENT_NAME, '') AS DEPARTMENT_NAME,
+                           NVL(S.SECTION_NAME, '') AS SECTION_NAME,
+                           NVL(U.UNIT_NAME, '') AS UNIT_NAME,
+                           NVL(O.EMP_STATUS, 'Active') AS EMP_STATUS,
+                           NVL(P.CONTACT_NO, '') AS CONTACT_NO,
+                           NVL(P.E_MAIL, '') AS E_MAIL,
+                           NVL(O.EMRG_CONTACT_NAME, '') AS EMRG_CONTACT_NAME,
+                           NVL(P.EMRG_CELL_NO, '') AS EMRG_CELL_NO,
+                           NVL(P.NOMINEE_CELL_NO, '') AS NOMINEE_CELL_NO,
+                           NVL(O.REF_CELL_NO, '') AS REF_CELL_NO,
+                           NVL(P.PRESENT_VILL, '') || DECODE(P.PRESENT_DIST, NULL, '', ', ' || P.PRESENT_DIST) AS PRESENT_ADDRESS,
+                           NVL(P.PARMANENT_VILL, '') || DECODE(P.PARMANENT_DIST, NULL, '', ', ' || P.PARMANENT_DIST) AS PERM_ADDRESS,
+                           NVL(P.BLOOD_GROUP, '') AS BLOOD_GROUP
+                    FROM EMP_OFFICIAL O
+                    LEFT JOIN EMP_PERSONAL P ON O.EMP_ID = P.EMP_ID
+                    LEFT JOIN DESIGNATION DES ON O.DESIGNATION_ID = DES.DESIGNATION_ID
+                    LEFT JOIN DEPARTMENT D ON O.DEPARTMENT_ID = D.DEPARTMENT_ID
+                    LEFT JOIN SECTION S ON O.SECTION_ID = S.SECTION_ID
+                    LEFT JOIN UNIT U ON O.UNIT_ID = U.UNIT_ID
+                    {whereClause}
+                    ORDER BY O.EMP_CODE ASC
+                ) a WHERE ROWNUM <= {endRow}
+            ) WHERE rnum >= {startRow}
+            """;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        int totalCount = 0;
+        await using (var cmdCount = new OracleCommand(countSql, connection) { BindByName = true })
+        {
+            foreach (var p in parameters)
+                cmdCount.Parameters.Add(new OracleParameter(p.ParameterName, p.Value));
+            var countRes = await cmdCount.ExecuteScalarAsync(cancellationToken);
+            totalCount = Convert.ToInt32(countRes);
+        }
+
+        var list = new List<EmployeeContactItem>();
+        await using (var cmdData = new OracleCommand(dataSql, connection) { BindByName = true })
+        {
+            foreach (var p in parameters)
+                cmdData.Parameters.Add(new OracleParameter(p.ParameterName, p.Value));
+
+            await using var reader = await cmdData.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                list.Add(new EmployeeContactItem
+                {
+                    EmployeeId = Convert.ToInt32(reader["EMP_ID"]),
+                    EmployeeCode = Convert.ToString(reader["EMP_CODE"]) ?? string.Empty,
+                    EmployeeName = Convert.ToString(reader["EMP_NAME"]) ?? string.Empty,
+                    BanglaEmployeeName = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["BANG_EMP_NAME"])),
+                    DesignationName = Convert.ToString(reader["DESIGNATION_NAME"]) ?? string.Empty,
+                    DepartmentName = Convert.ToString(reader["DEPARTMENT_NAME"]) ?? string.Empty,
+                    SectionName = Convert.ToString(reader["SECTION_NAME"]) ?? string.Empty,
+                    UnitName = Convert.ToString(reader["UNIT_NAME"]) ?? string.Empty,
+                    EmployeeStatus = Convert.ToString(reader["EMP_STATUS"]) ?? "Active",
+                    ContactNo = Convert.ToString(reader["CONTACT_NO"]) ?? string.Empty,
+                    Email = Convert.ToString(reader["E_MAIL"]) ?? string.Empty,
+                    EmergencyContactName = Convert.ToString(reader["EMRG_CONTACT_NAME"]) ?? string.Empty,
+                    EmergencyCellNo = Convert.ToString(reader["EMRG_CELL_NO"]) ?? string.Empty,
+                    NomineeCellNo = Convert.ToString(reader["NOMINEE_CELL_NO"]) ?? string.Empty,
+                    RefCellNo = Convert.ToString(reader["REF_CELL_NO"]) ?? string.Empty,
+                    PresentAddress = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["PRESENT_ADDRESS"])),
+                    PermanentAddress = EmployeeCsvHelper.EnsureUnicode(Convert.ToString(reader["PERM_ADDRESS"])),
+                    BloodGroup = Convert.ToString(reader["BLOOD_GROUP"]) ?? string.Empty
+                });
+            }
+        }
+
+        return (list, totalCount);
+    }
+
+    public async Task QuickUpdateContactAsync(
+        int employeeId,
+        string? contactNo,
+        string? email,
+        string? emergencyContactName,
+        string? emergencyCellNo,
+        string? nomineeCellNo,
+        string? refCellNo,
+        string? bloodGroup = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            const string sqlPersonal = """
+                UPDATE EMP_PERSONAL 
+                SET CONTACT_NO = :contactNo, 
+                    E_MAIL = :email, 
+                    NOMINEE_CELL_NO = :nomineeCellNo, 
+                    EMRG_CELL_NO = :emergencyCellNo,
+                    BLOOD_GROUP = :bloodGroup 
+                WHERE EMP_ID = :empId
+                """;
+            await using var cmdP = new OracleCommand(sqlPersonal, connection) { Transaction = transaction, BindByName = true };
+            cmdP.Parameters.Add(new OracleParameter("contactNo", (object?)contactNo ?? DBNull.Value));
+            cmdP.Parameters.Add(new OracleParameter("email", (object?)email ?? DBNull.Value));
+            cmdP.Parameters.Add(new OracleParameter("nomineeCellNo", (object?)nomineeCellNo ?? DBNull.Value));
+            cmdP.Parameters.Add(new OracleParameter("emergencyCellNo", (object?)emergencyCellNo ?? DBNull.Value));
+            cmdP.Parameters.Add(new OracleParameter("bloodGroup", (object?)bloodGroup ?? DBNull.Value));
+            cmdP.Parameters.Add(new OracleParameter("empId", employeeId));
+            await cmdP.ExecuteNonQueryAsync(cancellationToken);
+
+            const string sqlOfficial = """
+                UPDATE EMP_OFFICIAL 
+                SET EMRG_CONTACT_NAME = :emrgName, 
+                    REF_CELL_NO = :refCellNo 
+                WHERE EMP_ID = :empId
+                """;
+            await using var cmdO = new OracleCommand(sqlOfficial, connection) { Transaction = transaction, BindByName = true };
+            cmdO.Parameters.Add(new OracleParameter("emrgName", (object?)emergencyContactName ?? DBNull.Value));
+            cmdO.Parameters.Add(new OracleParameter("refCellNo", (object?)refCellNo ?? DBNull.Value));
+            cmdO.Parameters.Add(new OracleParameter("empId", employeeId));
+            await cmdO.ExecuteNonQueryAsync(cancellationToken);
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<int> BulkUpdateEmployeeContactsByCodeAsync(
+        IEnumerable<(string EmpCode, string? ContactNo, string? Email, string? EmergencyContactName, string? EmergencyCellNo, string? NomineeCellNo, string? RefCellNo, string? BloodGroup)> items,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var list = items.ToList();
+        if (list.Count == 0) return 0;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var oracleTransaction = (OracleTransaction)transaction;
+
+        try
+        {
+            int updated = 0;
+            const string sqlPersonal = """
+                UPDATE EMP_PERSONAL 
+                SET CONTACT_NO = NVL(:contactNo, CONTACT_NO), 
+                    E_MAIL = NVL(:email, E_MAIL), 
+                    NOMINEE_CELL_NO = NVL(:nomineeCellNo, NOMINEE_CELL_NO), 
+                    EMRG_CELL_NO = NVL(:emergencyCellNo, EMRG_CELL_NO),
+                    BLOOD_GROUP = NVL(:bloodGroup, BLOOD_GROUP) 
+                WHERE EMP_ID = (SELECT EMP_ID FROM EMP_OFFICIAL WHERE EMP_CODE = :empCode AND ROWNUM = 1)
+                """;
+
+            const string sqlOfficial = """
+                UPDATE EMP_OFFICIAL 
+                SET EMRG_CONTACT_NAME = NVL(:emrgName, EMRG_CONTACT_NAME), 
+                    REF_CELL_NO = NVL(:refCellNo, REF_CELL_NO) 
+                WHERE EMP_CODE = :empCode
+                """;
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.EmpCode)) continue;
+                var code = item.EmpCode.Trim();
+
+                using var cmdP = new OracleCommand(sqlPersonal, connection) { Transaction = oracleTransaction, BindByName = true };
+                cmdP.Parameters.Add(new OracleParameter("contactNo", (object?)item.ContactNo ?? DBNull.Value));
+                cmdP.Parameters.Add(new OracleParameter("email", (object?)item.Email ?? DBNull.Value));
+                cmdP.Parameters.Add(new OracleParameter("nomineeCellNo", (object?)item.NomineeCellNo ?? DBNull.Value));
+                cmdP.Parameters.Add(new OracleParameter("emergencyCellNo", (object?)item.EmergencyCellNo ?? DBNull.Value));
+                cmdP.Parameters.Add(new OracleParameter("bloodGroup", (object?)item.BloodGroup ?? DBNull.Value));
+                cmdP.Parameters.Add(new OracleParameter("empCode", code));
+                await cmdP.ExecuteNonQueryAsync(cancellationToken);
+
+                using var cmdO = new OracleCommand(sqlOfficial, connection) { Transaction = oracleTransaction, BindByName = true };
+                cmdO.Parameters.Add(new OracleParameter("emrgName", (object?)item.EmergencyContactName ?? DBNull.Value));
+                cmdO.Parameters.Add(new OracleParameter("refCellNo", (object?)item.RefCellNo ?? DBNull.Value));
+                cmdO.Parameters.Add(new OracleParameter("empCode", code));
+                var count = await cmdO.ExecuteNonQueryAsync(cancellationToken);
+                if (count > 0) updated++;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return updated;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task<int> BulkUpdateEmployeePrioritiesByCodeAsync(
+        IEnumerable<(string EmpCode, int Priority)> items,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var list = items.ToList();
+        if (list.Count == 0) return 0;
+
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var oracleTransaction = (OracleTransaction)transaction;
+
+        try
+        {
+            int updated = 0;
+            const string sql = "UPDATE EMP_OFFICIAL SET PRIORITY = :priority WHERE EMP_CODE = :empCode";
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.EmpCode)) continue;
+                using var cmd = new OracleCommand(sql, connection) { Transaction = oracleTransaction, BindByName = true };
+                cmd.Parameters.Add(new OracleParameter("priority", item.Priority));
+                cmd.Parameters.Add(new OracleParameter("empCode", item.EmpCode.Trim()));
+                var c = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                if (c > 0) updated++;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return updated;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
 }
+

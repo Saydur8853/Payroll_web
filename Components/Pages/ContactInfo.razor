@@ -1,0 +1,551 @@
+@page "/ContactInfo"
+@inject EmployeeRepository EmployeeRepository
+@inject IJSRuntime JS
+@using TG.Payroll.Web.Models
+@using TG.Payroll.Web.Services
+
+<div class="emp-page-container emp-status-page">
+    <!-- Header Section -->
+    <header class="emp-status-clean-header">
+        <div class="emp-header-left">
+            <div class="emp-badge-category">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+                <span>COMMUNICATIONS & EMERGENCY DIRECTORY</span>
+            </div>
+            <h1 class="emp-clean-title">Contact Info</h1>
+            <p class="emp-clean-subtitle">Employee contact directory, phone numbers, emergency relatives, nominees, and communication channels.</p>
+        </div>
+        
+        <div class="emp-header-right">
+            @if (hasLoaded && totalCount > 0)
+            {
+                <div class="emp-total-counter-pill">
+                    <span class="pill-dot"></span>
+                    <span class="pill-text">Total: <strong>@totalCount.ToString("N0")</strong></span>
+                </div>
+            }
+            <button type="button" class="emp-btn emp-btn-outline" @onclick="ExportContactsCsvAsync" disabled="@(isExporting || !hasLoaded || contacts.Count == 0)">
+                @if (isExporting)
+                {
+                    <span class="emp-spinner-dot"></span>
+                    <span>Exporting...</span>
+                }
+                else
+                {
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    <span>Export Contacts</span>
+                }
+            </button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(toastMessage))
+    {
+        <div class="emp-toast-banner animate-in">
+            <span>✅</span>
+            <span>@toastMessage</span>
+        </div>
+    }
+
+    <!-- Filters Section -->
+    <section class="emp-card emp-status-filter-card">
+        <div class="emp-status-filter-grid">
+            <div class="emp-field">
+                <label class="emp-label">Department</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="selectedDepartmentId">
+                        <option value="">All Departments</option>
+                        @foreach (var d in lookups.Departments)
+                        {
+                            <option value="@d.Id">@d.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Section</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="selectedSectionId">
+                        <option value="">All Sections</option>
+                        @foreach (var s in FilteredSections)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field">
+                <label class="emp-label">Status</label>
+                <div class="emp-select-wrap">
+                    <select class="emp-input emp-select" @bind="selectedStatus">
+                        <option value="Active">Active</option>
+                        <option value="Close">Close</option>
+                        <option value="ALL">All Employees</option>
+                    </select>
+                    <span class="emp-select-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="emp-field emp-field-search">
+                <label class="emp-label">Search</label>
+                <div class="emp-search-input-wrap">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                    <input type="text" class="emp-input" placeholder="Phone, Mobile, Name, Code..." @bind="searchQuery" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                </div>
+            </div>
+
+            <div class="emp-field emp-field-actions">
+                <label class="emp-label">&nbsp;</label>
+                <div class="emp-filter-btns-wrap">
+                    <button type="button" class="emp-btn emp-btn-primary emp-btn-search" @onclick="ApplyFilterAsync" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="emp-spinner-dot"></span>
+                            <span>Searching...</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                            <span>Search</span>
+                        }
+                    </button>
+                    <button type="button" class="emp-btn emp-btn-secondary" @onclick="ResetFilter" title="Reset Filters">Clear</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Table Section -->
+    <section class="emp-card emp-status-table-card">
+        <div class="emp-status-table-header">
+            <div class="table-header-left">
+                <h3>
+                    @if (hasLoaded)
+                    {
+                        <span>Contact Directory (@totalCount.ToString("N0") Total)</span>
+                    }
+                    else
+                    {
+                        <span>Workforce Phonebook & Contacts</span>
+                    }
+                </h3>
+            </div>
+            <div class="table-header-right">
+                @if (hasLoaded && totalCount > 0)
+                {
+                    <span style="font-size:12px; color:#64748b; font-weight:500;">
+                        Page @(page) of @TotalPages
+                    </span>
+                }
+            </div>
+        </div>
+
+        <div class="emp-status-table-wrap">
+            <table class="emp-status-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Emp Code</th>
+                        <th style="width: 200px;">Employee Name</th>
+                        <th style="width: 180px;">Department & Role</th>
+                        <th style="width: 140px;">Primary Mobile</th>
+                        <th style="width: 170px;">Email Address</th>
+                        <th style="width: 190px;">Emergency Contact</th>
+                        <th style="width: 170px;">Nominee / Ref</th>
+                        <th style="width: 200px;">Present Address</th>
+                        <th class="col-center" style="width: 80px;">Status</th>
+                        <th class="col-center" style="width: 80px;">Quick Edit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr>
+                            <td colspan="10" class="table-loading-cell">
+                                <div class="table-spinner"></div>
+                                <span>Searching contact directory...</span>
+                            </td>
+                        </tr>
+                    }
+                    else if (!hasLoaded)
+                    {
+                        <tr>
+                            <td colspan="10" class="table-loading-cell" style="padding: 48px 16px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:42px; height:42px; margin-bottom:10px; color:#94a3b8;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                                <div style="font-weight: 700; color: #334155; font-size: 15px; margin-bottom: 4px;">Ready to Search Contacts</div>
+                                <div style="color: #64748b; font-size: 13px;">Enter phone number, employee code, name or select a department above and click "Search".</div>
+                            </td>
+                        </tr>
+                    }
+                    else if (contacts.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="10" class="table-loading-cell" style="padding: 48px 16px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:42px; height:42px; margin-bottom:10px; color:#94a3b8;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                                <div style="font-weight: 700; color: #334155; font-size: 15px; margin-bottom: 4px;">No Contacts Found</div>
+                                <div style="color: #64748b; font-size: 13px;">Try searching with another phone number or clear your filter.</div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var c in contacts)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="emp-code-badge">@c.EmployeeCode</span>
+                                </td>
+                                <td>
+                                    <strong class="emp-name-main">@c.EmployeeName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(c.BanglaEmployeeName))
+                                    {
+                                        <div class="emp-bangla-text"><small>@c.BanglaEmployeeName</small></div>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@c.DesignationName</strong>
+                                    <div class="emp-meta-sub">@c.DepartmentName &bull; @c.SectionName</div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(c.ContactNo))
+                                    {
+                                        <a href="tel:@c.ContactNo" class="emp-phone-link">📞 @c.ContactNo</a>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#94a3b8;">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(c.Email))
+                                    {
+                                        <a href="mailto:@c.Email" class="emp-email-link">✉️ @c.Email</a>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#94a3b8;">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(c.EmergencyCellNo) || !string.IsNullOrWhiteSpace(c.EmergencyContactName))
+                                    {
+                                        <div><strong>@c.EmergencyContactName</strong></div>
+                                        <small class="emp-phone-link">📞 @c.EmergencyCellNo</small>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#94a3b8;">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(c.NomineeCellNo))
+                                    {
+                                        <div><small>Nominee: @c.NomineeCellNo</small></div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(c.RefCellNo))
+                                    {
+                                        <div><small>Ref: @c.RefCellNo</small></div>
+                                    }
+                                    @if (string.IsNullOrWhiteSpace(c.NomineeCellNo) && string.IsNullOrWhiteSpace(c.RefCellNo))
+                                    {
+                                        <span style="color:#94a3b8;">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    <small style="max-width: 190px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="@c.PresentAddress">
+                                        @(string.IsNullOrWhiteSpace(c.PresentAddress) ? "-" : c.PresentAddress)
+                                    </small>
+                                </td>
+                                <td class="col-center">
+                                    <span class="emp-status-pill @c.EmployeeStatus.ToLowerInvariant()">@c.EmployeeStatus</span>
+                                </td>
+                                <td class="col-center">
+                                    <button type="button" class="emp-btn-mini" @onclick="() => OpenQuickEdit(c)" title="Quick Update Contacts">
+                                        ✏️ Edit
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Toolbar -->
+        @if (hasLoaded && totalCount > 0)
+        {
+            <div class="emp-pagination-bar">
+                <div class="emp-page-info">
+                    Showing @(((page - 1) * pageSize) + 1) to @(Math.Min(page * pageSize, totalCount)) of <strong>@totalCount.ToString("N0")</strong> contacts
+                </div>
+                <div class="emp-page-controls">
+                    <button type="button" class="emp-page-btn" disabled="@(page <= 1)" @onclick="() => GoToPageAsync(page - 1)">&laquo; Prev</button>
+                    <span class="emp-page-indicator">Page @(page) of @TotalPages</span>
+                    <button type="button" class="emp-page-btn" disabled="@(page >= TotalPages)" @onclick="() => GoToPageAsync(page + 1)">Next &raquo;</button>
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+<!-- Quick Edit Modal -->
+@if (editingContact is not null)
+{
+    <div class="emp-modal-backdrop" @onclick="CloseQuickEdit">
+        <div class="emp-modal-box emp-modal-sm animate-in" @onclick:stopPropagation="true">
+            <div class="emp-modal-header">
+                <h3>Quick Update Contact Details</h3>
+                <button type="button" class="emp-btn-close" @onclick="CloseQuickEdit">&times;</button>
+            </div>
+            <div class="emp-modal-body">
+                <div class="emp-active-file-bar" style="margin-bottom:1rem;">
+                    <strong>@editingContact.EmployeeName (@editingContact.EmployeeCode)</strong>
+                    <small>@editingContact.DesignationName &bull; @editingContact.DepartmentName</small>
+                </div>
+                <div class="emp-form-stack">
+                    <div class="emp-field">
+                        <label class="emp-label">Primary Mobile No</label>
+                        <input type="text" class="emp-input" @bind="editContactNo" placeholder="e.g. 01712345678" />
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Email Address</label>
+                        <input type="email" class="emp-input" @bind="editEmail" placeholder="e.g. user@nomangroup.com" />
+                    </div>
+                    <div class="emp-grid emp-grid-2">
+                        <div class="emp-field">
+                            <label class="emp-label">Emergency Contact Person</label>
+                            <input type="text" class="emp-input" @bind="editEmrgName" placeholder="Name" />
+                        </div>
+                        <div class="emp-field">
+                            <label class="emp-label">Emergency Cell No</label>
+                            <input type="text" class="emp-input" @bind="editEmrgCell" placeholder="Cell No" />
+                        </div>
+                    </div>
+                    <div class="emp-grid emp-grid-2">
+                        <div class="emp-field">
+                            <label class="emp-label">Nominee Cell No</label>
+                            <input type="text" class="emp-input" @bind="editNomineeCell" placeholder="Nominee Cell" />
+                        </div>
+                        <div class="emp-field">
+                            <label class="emp-label">Reference Cell No</label>
+                            <input type="text" class="emp-input" @bind="editRefCell" placeholder="Ref Cell" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="emp-modal-footer">
+                <button type="button" class="emp-btn emp-btn-secondary" @onclick="CloseQuickEdit" disabled="@isSavingQuickEdit">Cancel</button>
+                <button type="button" class="emp-btn emp-btn-primary" @onclick="SaveQuickEditAsync" disabled="@isSavingQuickEdit">
+                    @if (isSavingQuickEdit)
+                    {
+                        <span class="emp-spinner-dot"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Contact Info</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EmployeeContactItem> contacts = [];
+    private EmployeeLookups lookups = new();
+    private string searchQuery = string.Empty;
+    private int? selectedDepartmentId;
+    private int? selectedSectionId;
+    private string selectedStatus = "Active";
+    private int page = 1;
+    private int pageSize = 25;
+    private int totalCount = 0;
+    private bool isLoading = false;
+    private bool hasLoaded = false;
+    private bool isExporting = false;
+    private string? toastMessage;
+
+    // Quick edit modal state
+    private EmployeeContactItem? editingContact;
+    private string editContactNo = string.Empty;
+    private string editEmail = string.Empty;
+    private string editEmrgName = string.Empty;
+    private string editEmrgCell = string.Empty;
+    private string editNomineeCell = string.Empty;
+    private string editRefCell = string.Empty;
+    private bool isSavingQuickEdit = false;
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)totalCount / pageSize));
+
+    private IEnumerable<LookupOption> FilteredSections => lookups.Sections;
+
+    protected override async Task OnInitializedAsync()
+    {
+        lookups = await EmployeeRepository.GetLookupsAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        hasLoaded = true;
+        try
+        {
+            var res = await EmployeeRepository.GetEmployeeContactsAsync(
+                searchQuery,
+                null,
+                selectedDepartmentId,
+                selectedSectionId,
+                selectedStatus,
+                page,
+                pageSize);
+            contacts = res.Items;
+            totalCount = res.TotalCount;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ApplyFilterAsync()
+    {
+        page = 1;
+        await LoadDataAsync();
+    }
+
+    private void ResetFilter()
+    {
+        searchQuery = string.Empty;
+        selectedDepartmentId = null;
+        selectedSectionId = null;
+        selectedStatus = "Active";
+        page = 1;
+        contacts.Clear();
+        totalCount = 0;
+        hasLoaded = false;
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplyFilterAsync();
+        }
+    }
+
+    private async Task GoToPageAsync(int p)
+    {
+        if (p < 1 || p > TotalPages) return;
+        page = p;
+        await LoadDataAsync();
+    }
+
+    private void OpenQuickEdit(EmployeeContactItem item)
+    {
+        editingContact = item;
+        editContactNo = item.ContactNo;
+        editEmail = item.Email;
+        editEmrgName = item.EmergencyContactName;
+        editEmrgCell = item.EmergencyCellNo;
+        editNomineeCell = item.NomineeCellNo;
+        editRefCell = item.RefCellNo;
+    }
+
+    private void CloseQuickEdit()
+    {
+        editingContact = null;
+    }
+
+    private async Task SaveQuickEditAsync()
+    {
+        if (editingContact is null) return;
+        isSavingQuickEdit = true;
+        try
+        {
+            await EmployeeRepository.QuickUpdateContactAsync(
+                editingContact.EmployeeId,
+                editContactNo,
+                editEmail,
+                editEmrgName,
+                editEmrgCell,
+                editNomineeCell,
+                editRefCell);
+
+            // Update in-memory
+            editingContact.ContactNo = editContactNo;
+            editingContact.Email = editEmail;
+            editingContact.EmergencyContactName = editEmrgName;
+            editingContact.EmergencyCellNo = editEmrgCell;
+            editingContact.NomineeCellNo = editNomineeCell;
+            editingContact.RefCellNo = editRefCell;
+
+            CloseQuickEdit();
+            toastMessage = $"Updated contact information for {editingContact.EmployeeName} ({editingContact.EmployeeCode}).";
+            StateHasChanged();
+            _ = Task.Delay(4000).ContinueWith(_ => { toastMessage = null; InvokeAsync(StateHasChanged); });
+        }
+        finally
+        {
+            isSavingQuickEdit = false;
+        }
+    }
+
+    private async Task ExportContactsCsvAsync()
+    {
+        isExporting = true;
+        try
+        {
+            var res = await EmployeeRepository.GetEmployeeContactsAsync(
+                searchQuery,
+                null,
+                selectedDepartmentId,
+                selectedSectionId,
+                selectedStatus,
+                1,
+                10000);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Emp Code,Name,Bangla Name,Department,Section,Designation,Unit,Status,Primary Contact,Email,Emergency Person,Emergency Cell,Nominee Cell,Ref Cell,Present Address,Permanent Address");
+            foreach (var c in res.Items)
+            {
+                sb.AppendLine(string.Join(",",
+                    EmployeeCsvHelper.EscapeCsv(c.EmployeeCode),
+                    EmployeeCsvHelper.EscapeCsv(c.EmployeeName),
+                    EmployeeCsvHelper.EscapeCsv(c.BanglaEmployeeName),
+                    EmployeeCsvHelper.EscapeCsv(c.DepartmentName),
+                    EmployeeCsvHelper.EscapeCsv(c.SectionName),
+                    EmployeeCsvHelper.EscapeCsv(c.DesignationName),
+                    EmployeeCsvHelper.EscapeCsv(c.UnitName),
+                    EmployeeCsvHelper.EscapeCsv(c.EmployeeStatus),
+                    EmployeeCsvHelper.EscapeCsv(c.ContactNo),
+                    EmployeeCsvHelper.EscapeCsv(c.Email),
+                    EmployeeCsvHelper.EscapeCsv(c.EmergencyContactName),
+                    EmployeeCsvHelper.EscapeCsv(c.EmergencyCellNo),
+                    EmployeeCsvHelper.EscapeCsv(c.NomineeCellNo),
+                    EmployeeCsvHelper.EscapeCsv(c.RefCellNo),
+                    EmployeeCsvHelper.EscapeCsv(c.PresentAddress),
+                    EmployeeCsvHelper.EscapeCsv(c.PermanentAddress)
+                ));
+            }
+
+            var bytes = EmployeeCsvHelper.GetUtf8BomBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"Contact_Directory_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, base64, "text/csv;charset=utf-8;");
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+}

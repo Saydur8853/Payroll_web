@@ -7,6 +7,7 @@
     private List<NavigationItem> menu = [];
     private string userName = "User";
     private string companyName = "Payroll";
+    private string? companyLogoPath;
     private bool isAdmin;
     private bool hasDashboard;
     private bool hasUserManagement;
@@ -27,6 +28,21 @@
         companyName = session?.GetString("CompanyName") ?? companyName;
         isAdmin = session?.GetString("IsAdmin") == "1";
         menu = await PayrollRepository.GetMenuAsync(userId);
+
+        try
+        {
+            var compIdStr = session?.GetString("CompanyId");
+            if (int.TryParse(compIdStr, out var cId))
+            {
+                var companies = await PayrollRepository.GetCompaniesAsync();
+                var activeComp = companies.FirstOrDefault(c => c.CompanyId == cId);
+                if (activeComp is not null && !string.IsNullOrWhiteSpace(activeComp.LogoSource))
+                {
+                    companyLogoPath = activeComp.LogoSource;
+                }
+            }
+        }
+        catch { }
 
         hasDashboard = isAdmin || HasModuleRecursive(menu, item => item.Id == 184 || item.Name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase));
         hasUserManagement = isAdmin || HasModuleRecursive(menu, item => 
@@ -54,6 +70,39 @@
         HttpContextAccessor.HttpContext?.Session.Clear();
         Navigation.NavigateTo("/", forceLoad: true);
     }
+
+    private string FullUnitBrandTitle =>
+        string.IsNullOrWhiteSpace(companyName) || companyName.Equals("Payroll", StringComparison.OrdinalIgnoreCase)
+            ? "TG Payroll"
+            : companyName;
+
+    private string ShortUnitBrandTitle =>
+        string.IsNullOrWhiteSpace(companyName) || companyName.Equals("Payroll", StringComparison.OrdinalIgnoreCase)
+            ? "TG Payroll"
+            : GetAcronym(companyName);
+
+    private string UnitBrandInitials =>
+        string.IsNullOrWhiteSpace(companyName) || companyName.Equals("Payroll", StringComparison.OrdinalIgnoreCase)
+            ? "TG"
+            : GetInitials(companyName);
+
+    private static string GetAcronym(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "TG";
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 1) return words[0];
+        
+        var acronym = new string(words.Select(w => char.ToUpperInvariant(w[0])).ToArray());
+        return acronym.Length > 6 ? acronym.Substring(0, 6) : acronym;
+    }
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "TG";
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length >= 2) return $"{char.ToUpperInvariant(words[0][0])}{char.ToUpperInvariant(words[1][0])}";
+        return name.Length >= 2 ? name.Substring(0, 2).ToUpperInvariant() : name.ToUpperInvariant();
+    }
 }
 
 @if (loaded)
@@ -62,20 +111,24 @@
         <header class="topbar">
             <NavLink class="brand-link" href="/Dashboard">
                 <div class="brand-badge">
-                    <span class="brand-mark small">TG</span>
+                    @if (!string.IsNullOrWhiteSpace(companyLogoPath))
+                    {
+                        <img src="@companyLogoPath" alt="Logo" class="topbar-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+                        <span class="brand-mark small" style="display:none;">@UnitBrandInitials</span>
+                    }
+                    else
+                    {
+                        <span class="brand-mark small">@UnitBrandInitials</span>
+                    }
                 </div>
                 <div class="brand-text-group">
-                    <span class="topbar-title">TG Payroll</span>
-                    <span class="topbar-tag">Enterprise HRIS</span>
+                    <span class="topbar-title topbar-title-full" title="@FullUnitBrandTitle">@FullUnitBrandTitle</span>
+                    <span class="topbar-title topbar-title-short" title="@FullUnitBrandTitle">@ShortUnitBrandTitle</span>
+                    <span class="topbar-tag">Enterprise HRIS & Payroll</span>
                 </div>
             </NavLink>
 
             <div class="topbar-right">
-                <div class="topbar-company-badge" title="Active Organization">
-                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9zM7 13h2v2H7v-2zm4 0h2v2h-2v-2z" clip-rule="evenodd"/></svg>
-                    <span>@companyName</span>
-                </div>
-
                 <NavLink class="topbar-user-pill topbar-user-link" href="/Account" Match="NavLinkMatch.Prefix" title="My Profile & Login Settings">
                     <div class="topbar-avatar">
                         <span>@(string.IsNullOrWhiteSpace(userName) ? "U" : userName[0].ToString().ToUpperInvariant())</span>
@@ -120,12 +173,18 @@
 
                 <div class="sidebar-footer-card">
                     <div class="sidebar-footer-header">
-                        <div class="sidebar-footer-dot"></div>
-                        <span class="sidebar-footer-label">System Online</span>
+                        <div class="sidebar-footer-status">
+                            <div class="sidebar-footer-dot"></div>
+                            <span class="sidebar-footer-label">System Online</span>
+                        </div>
+                        <span class="sidebar-version-badge">v1.0.0 <span class="sidebar-beta-tag">BETA</span></span>
                     </div>
                     <div class="sidebar-footer-meta">
                         <strong title="@companyName">@companyName</strong>
-                        <small>TG Payroll Enterprise</small>
+                        <div class="sidebar-footer-sub">
+                            <small>TG Payroll Enterprise</small>
+                            <span class="sidebar-build-tag">Beta Release</span>
+                        </div>
                     </div>
                 </div>
             </aside>

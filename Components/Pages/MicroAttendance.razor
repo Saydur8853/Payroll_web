@@ -1,0 +1,304 @@
+@page "/MicroAttendance"
+@using System.Data
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject MasterRepository MasterRepository
+@inject AttendanceRepository AttendanceRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Micro Attendance Processing - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="control-entry-shell">
+        <section class="control-form-panel">
+            <div class="skeleton-shimmer" style="height:32px;width:240px;margin-bottom:12px;"></div>
+        </section>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to access Attendance modules.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">TIME & ATTENDANCE MANAGEMENT</p>
+            <h1>Micro Attendance Processing</h1>
+            <p>Calculate special shifts, micro rosters, night transitions, and dual out-time overtime allocations.</p>
+        </div>
+    </section>
+
+    <!-- Floating Modern Toast Notifications -->
+    <div class="toast-notification-container">
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="toast-item toast-success">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Operation Successful</div>
+                    <div class="toast-text">@successMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => successMessage = null">&times;</button>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="toast-item toast-error">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Notice / Error</div>
+                    <div class="toast-text">@errorMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => errorMessage = null">&times;</button>
+            </div>
+        }
+    </div>
+
+    <!-- Filter Console -->
+    <div class="control-entry-shell" style="margin-bottom:16px;">
+        <section class="control-form-panel">
+            <form @onsubmit="LoadMicroData" @onsubmit:preventDefault>
+                <div class="master-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <label class="company-form-group">
+                        <span class="company-form-label">From Date <strong class="req-star">*</strong></span>
+                        <input type="date" value="@filter.FromDate.ToString("yyyy-MM-dd")" @onchange="OnFromDateChanged" class="company-form-input" />
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">To Date <strong class="req-star">*</strong></span>
+                        <input type="date" value="@filter.ToDate.ToString("yyyy-MM-dd")" @onchange="OnToDateChanged" class="company-form-input" />
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Department</span>
+                        <select @bind="filter.DepartmentId" class="company-form-input">
+                            <option value="">-- All Departments --</option>
+                            @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                        </select>
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Employee Code</span>
+                        <input @bind="filter.EmpCode" placeholder="Specific Code" class="company-form-input" />
+                    </label>
+                </div>
+                <div class="control-form-actions" style="margin-top:14px;gap:8px;">
+                    <button type="button" class="btn-secondary-action" @onclick="ResetFilter">Reset</button>
+                    @if (microList.Count > 0)
+                    {
+                        <button type="button" class="btn-secondary-action" style="background:#16a34a;color:#fff;border:none;" @onclick="ExportToCsv">Export to CSV</button>
+                    }
+                    <button type="submit" class="btn-primary-action" disabled="@isLoadingData">
+                        <span>@(isLoadingData ? "Loading..." : "Search & Filter")</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    @if (hasSearched)
+    {
+        <section class="control-list-panel">
+            <div class="control-list-header">
+                <div>
+                    <h2>Micro Shift & Special Roster Attendance (@microList.Count Records)</h2>
+                    <p>Dual punch schedules, night shift transitions, and special shift overtime allocations.</p>
+                </div>
+            </div>
+            <div class="controls-table-container" style="max-height:600px;overflow:auto;">
+                <table class="controls-data-table">
+                    <thead>
+                        <tr>
+                            <th>Emp Code</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Shift</th>
+                            <th style="text-align:center;">Date</th>
+                            <th style="text-align:center;">In Time</th>
+                            <th style="text-align:center;">Out Time 1</th>
+                            <th style="text-align:center;">Out Time 2</th>
+                            <th style="text-align:center;">OT 1</th>
+                            <th style="text-align:center;">OT 2</th>
+                            <th style="text-align:center;">Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in microList)
+                        {
+                            <tr>
+                                <td><strong>@m.EmpCode</strong></td>
+                                <td>@m.EmpName</td>
+                                <td>@m.DepartmentName</td>
+                                <td><span class="type-pill">@m.ShiftName</span></td>
+                                <td style="text-align:center;"><small>@m.AttdDate.ToString("dd-MMM-yyyy")</small></td>
+                                <td style="text-align:center;">@(m.InTime ?? "--")</td>
+                                <td style="text-align:center;">@(m.OutTime ?? "--")</td>
+                                <td style="text-align:center;">@(m.OutTime2 ?? "--")</td>
+                                <td style="text-align:center;">@m.OverTime h</td>
+                                <td style="text-align:center;">@m.OverTime2 h</td>
+                                <td style="text-align:center;"><span class="type-pill">@m.Status</span></td>
+                                <td><small>@m.Remarks</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else
+    {
+        <div style="padding:48px 24px;text-align:center;color:#64748b;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;color:#94a3b8;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <h3 style="margin:0 0 6px;color:#334155;">Ready to Search Micro Attendance Records</h3>
+            <p style="margin:0;font-size:13px;">Select date range or department filter above and click <strong>Search & Filter</strong>.</p>
+        </div>
+    }
+}
+
+@code {
+    private bool loaded;
+    private bool hasAccess;
+    private bool hasSearched;
+    private bool isLoadingData;
+
+    private AttendanceFilter filter = new();
+    private List<DepartmentItem> departments = [];
+    private List<MicroAttendanceItem> microList = [];
+
+    // 5-Second Auto-Dismiss Toast
+    private string? _successMessage;
+    private string? successMessage
+    {
+        get => _successMessage;
+        set
+        {
+            _successMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _errorMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private string? _errorMessage;
+    private string? errorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            _errorMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _successMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private CancellationTokenSource? toastCts;
+    private void ScheduleToastDismiss()
+    {
+        toastCts?.Cancel();
+        toastCts = new CancellationTokenSource();
+        var token = toastCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(5000, token);
+                if (!token.IsCancellationRequested)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        _successMessage = null;
+                        _errorMessage = null;
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch (TaskCanceledException) { }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out _))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        hasAccess = true;
+        departments = await MasterRepository.GetDepartmentsAsync();
+        loaded = true;
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt)) filter.FromDate = dt;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt)) filter.ToDate = dt;
+    }
+
+    private void ResetFilter()
+    {
+        filter = new AttendanceFilter();
+        hasSearched = false;
+        microList.Clear();
+    }
+
+    private async Task LoadMicroData()
+    {
+        isLoadingData = true;
+        try
+        {
+            microList = await AttendanceRepository.GetMicroAttendanceRecordsAsync(filter);
+            hasSearched = true;
+            successMessage = $"Found {microList.Count} micro attendance records.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Data Load Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("\"Emp Code\",\"Name\",\"Department\",\"Shift\",\"Date\",\"In Time\",\"Out Time 1\",\"Out Time 2\",\"OT 1\",\"OT 2\",\"Status\",\"Remarks\"");
+            foreach (var m in microList)
+            {
+                sb.AppendLine($"\"{m.EmpCode}\",\"{m.EmpName}\",\"{m.DepartmentName}\",\"{m.ShiftName}\",\"{m.AttdDate:dd-MMM-yyyy}\",\"{m.InTime}\",\"{m.OutTime}\",\"{m.OutTime2}\",\"{m.OverTime}\",\"{m.OverTime2}\",\"{m.Status}\",\"{m.Remarks}\"");
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = $"Micro_Attendance_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("eval", "const a = document.createElement('a'); a.href = 'data:text/csv;base64," + base64 + "'; a.download = '" + filename + "'; a.click();");
+            successMessage = $"Exported {microList.Count} records to {filename}.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Export Failed: {ex.Message}";
+        }
+    }
+}

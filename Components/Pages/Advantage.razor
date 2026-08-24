@@ -1,0 +1,1443 @@
+@page "/Advantage"
+@page "/Advantage/{TabName}"
+@page "/AdvanceSalary"
+@page "/FestivalBonus"
+@page "/IncrementEntry"
+@page "/Promotion"
+@page "/EarnLeave"
+@page "/AllowanceProcess"
+@page "/Insurance"
+@using System.Web
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject PayrollRepository PayrollRepository
+@inject MasterRepository MasterRepository
+@inject EmployeeRepository EmployeeRepository
+@inject AdvantageRepository AdvantageRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@GetHeaderTitle() - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="control-entry-shell">
+        <section class="control-form-panel">
+            <div class="skeleton-shimmer" style="height:32px;width:240px;margin-bottom:12px;"></div>
+            <div class="skeleton-shimmer" style="height:18px;width:380px;margin-bottom:24px;"></div>
+            <div class="skeleton-shimmer" style="height:180px;border-radius:12px;margin-bottom:16px;"></div>
+        </section>
+        <section class="control-list-panel">
+            <div class="skeleton-shimmer" style="height:350px;border-radius:12px;"></div>
+        </section>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to view Advantage modules.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">ADVANTAGE & BENEFIT OPERATIONS</p>
+            <h1>@GetHeaderTitle()</h1>
+            <p>@GetHeaderSubtitle()</p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="database-error management-message">@errorMessage</div>
+    }
+
+    <!-- Universal Delete Consent Modal -->
+    @if (showConfirmModal)
+    {
+        <div class="modal-backdrop-overlay" @onclick="CancelDelete">
+            <div class="confirm-delete-modal" @onclick:stopPropagation>
+                <div class="confirm-modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3>Are you sure?</h3>
+                <p>Do you really want to delete <strong>@confirmItemTitle</strong> (@confirmItemType)? This action cannot be undone.</p>
+                <div class="confirm-modal-actions">
+                    <button type="button" class="btn-cancel-modal" @onclick="CancelDelete">No, Cancel</button>
+                    <button type="button" class="btn-confirm-delete" @onclick="ExecuteConfirmedDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ==================== 1. ADVANCE SALARY ==================== -->
+    @if (activeTab == "advancesalary" && canAccessAdvanceSalary)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Advance Salary Processing</h2>
+                    <p>Calculate and record monthly salary advances based on attendance and working days.</p>
+                </div>
+                <form @onsubmit="ProcessAdvanceSalary" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Advance Month / Effect Date</span>
+                            <input type="month" value="@filter.EffectDate.ToString("yyyy-MM")" @onchange="OnAdvanceMonthChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Attendance Start Date</span>
+                            <input type="date" value="@filter.StartDate.ToString("yyyy-MM-dd")" @onchange="e => filter.StartDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Attendance End Date</span>
+                            <input type="date" value="@filter.EndDate.ToString("yyyy-MM-dd")" @onchange="e => filter.EndDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Advance Title / Description</span>
+                            <input @bind="filter.TitleOrType" placeholder="e.g. Mid-Month Advance" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Business Unit</span>
+                            <select @bind="filter.UnitId" class="company-form-input">
+                                <option value="">-- All Units --</option>
+                                @foreach (var u in units) { <option value="@u.UnitId">@u.UnitName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Round To Amount (BDT)</span>
+                            <select @bind="advRoundAmount" class="company-form-input">
+                                <option value="1">No Rounding (Exact)</option>
+                                <option value="100">Round to 100</option>
+                                <option value="500">Round to 500</option>
+                                <option value="1000">Round to 1000</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code (Optional)</span>
+                            <input @bind="filter.EmpCode" placeholder="Specific Emp Code" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadSavedAdvanceSalaries">Load Saved Records</button>
+                        <button type="submit" class="btn-primary-action">
+                            <span>Calculate / Process Advance</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Advance Salary Roster (@advanceSalaries.Count Records)</h2>
+                        <p>Total Advance: <strong>৳ @advanceSalaries.Sum(a => a.AdvanceAmount).ToString("N2")</strong> | Bank: ৳ @advanceSalaries.Sum(a => a.BankPayable).ToString("N2") | Cash: ৳ @advanceSalaries.Sum(a => a.CashPayable).ToString("N2")</p>
+                    </div>
+                    @if (advanceSalaries.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="SaveAdvanceSalaries">Save All Records</button>
+                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Advance Salary Batch", filter.EffectDate.ToString("MMMM yyyy"), DeleteAdvanceSalaries)'>Clear Month</button>
+                        </div>
+                    }
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" @onchange="ToggleSelectAllAdvances" checked="@(advanceSalaries.Count > 0 && advanceSalaries.All(a => a.IsSelected))" /></th>
+                                <th>Emp Code</th>
+                                <th>Employee Name</th>
+                                <th>Designation / Dept</th>
+                                <th style="text-align:right;">Gross</th>
+                                <th style="text-align:center;">Present</th>
+                                <th style="text-align:right;">Earning</th>
+                                <th style="text-align:right;">Advance (Payable)</th>
+                                <th>Pay Mode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in advanceSalaries)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" @bind="a.IsSelected" /></td>
+                                    <td><strong>@a.EmpCode</strong></td>
+                                    <td>@a.EmpName</td>
+                                    <td><small>@a.DesignationName</small><div class="badge-sub">@a.DepartmentName</div></td>
+                                    <td style="text-align:right;">৳ @a.Gross.ToString("N0")</td>
+                                    <td style="text-align:center;"><span class="type-pill">@a.PresentDays d</span></td>
+                                    <td style="text-align:right;">৳ @a.EarningSalary.ToString("N0")</td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="a.AdvanceAmount" class="table-inline-input" style="width:90px;text-align:right;" @bind:after="() => RecalculateAdvanceRow(a)" />
+                                    </td>
+                                    <td><span class="@(a.AccType == "Bank" ? "admin-badge" : "type-pill")">@a.AccType</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 2. FESTIVAL BONUS ==================== -->
+    @if (activeTab == "bonus" && canAccessFestivalBonus)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Festival Bonus Processing</h2>
+                    <p>Compute festival bonuses (Eid, Puja, Year-End) with stamp deductions and bank/cash split.</p>
+                </div>
+                <form @onsubmit="ProcessFestivalBonus" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Festival / Bonus Title <strong class="req-star">*</strong></span>
+                            <select @bind="filter.TitleOrType" class="company-form-input">
+                                <option value="Eid-ul-Fitr">Eid-ul-Fitr</option>
+                                <option value="Eid-ul-Adha">Eid-ul-Adha</option>
+                                <option value="Durga Puja">Durga Puja</option>
+                                <option value="Christmas / New Year">Christmas / New Year</option>
+                                <option value="Special Festival Bonus">Special Festival Bonus</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Bonus Month / Effect Date</span>
+                            <input type="month" value="@filter.EffectDate.ToString("yyyy-MM")" @onchange="OnBonusMonthChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Bonus Formula / Calculation Rule</span>
+                            <select @bind="bonusBasis" class="company-form-input">
+                                <option value="BASIC_100">100% of Basic Salary</option>
+                                <option value="BASIC_50">50% of Basic Salary (Half Basic)</option>
+                                <option value="GROSS_50">50% of Gross Salary</option>
+                                <option value="GROSS_100">100% of Gross Salary</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Business Unit</span>
+                            <select @bind="filter.UnitId" class="company-form-input">
+                                <option value="">-- All Units --</option>
+                                @foreach (var u in units) { <option value="@u.UnitId">@u.UnitName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Category</span>
+                            <select @bind="filter.CategoryId" class="company-form-input">
+                                <option value="">-- All Categories --</option>
+                                @foreach (var c in categories) { <option value="@c.CategoryId">@c.CategoryName</option> }
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadSavedFestivalBonuses">Load Saved Records</button>
+                        <button type="submit" class="btn-primary-action">
+                            <span>Calculate / Process Bonus</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Festival Bonus Register (@festivalBonuses.Count Employees)</h2>
+                        <p>Total Bonus: <strong>৳ @festivalBonuses.Sum(b => b.BonusAmount).ToString("N2")</strong> | Net Cash: ৳ @festivalBonuses.Sum(b => b.NetCashPayable).ToString("N2") | Bank: ৳ @festivalBonuses.Sum(b => b.BankPayable).ToString("N2")</p>
+                    </div>
+                    @if (festivalBonuses.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="SaveFestivalBonuses">Save Bonus Records</button>
+                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Festival Bonus Batch", filter.EffectDate.ToString("MMMM yyyy"), DeleteFestivalBonuses)'>Clear Batch</button>
+                        </div>
+                    }
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" @onchange="ToggleSelectAllBonuses" checked="@(festivalBonuses.Count > 0 && festivalBonuses.All(b => b.IsSelected))" /></th>
+                                <th>Emp Code</th>
+                                <th>Employee Name</th>
+                                <th>Department / Desig</th>
+                                <th style="text-align:right;">Gross</th>
+                                <th style="text-align:right;">Basic</th>
+                                <th style="text-align:center;">Service</th>
+                                <th style="text-align:right;">Bonus</th>
+                                <th style="text-align:right;">Stamp</th>
+                                <th style="text-align:right;">Net Cash</th>
+                                <th>Mode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in festivalBonuses)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" @bind="b.IsSelected" /></td>
+                                    <td><strong>@b.EmpCode</strong></td>
+                                    <td>@b.EmpName</td>
+                                    <td><small>@b.DepartmentName</small><div class="badge-sub">@b.DesignationName</div></td>
+                                    <td style="text-align:right;">৳ @b.Gross.ToString("N0")</td>
+                                    <td style="text-align:right;">৳ @b.Basic.ToString("N0")</td>
+                                    <td style="text-align:center;"><span class="type-pill">@b.ServicePeriod</span></td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="b.BonusAmount" class="table-inline-input" style="width:85px;text-align:right;" @bind:after="() => RecalculateBonusRow(b)" />
+                                    </td>
+                                    <td style="text-align:right;">৳ @b.Stamp.ToString("N0")</td>
+                                    <td style="text-align:right;"><strong>৳ @b.NetCashPayable.ToString("N0")</strong></td>
+                                    <td><span class="@(b.AccType == "Bank" ? "admin-badge" : "type-pill")">@b.AccType</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 3. INCREMENT ENTRY ==================== -->
+    @if (activeTab == "increment" && canAccessIncrement)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Yearly / Periodic Increment Entry</h2>
+                    <p>Apply percentage or fixed-amount salary increments across departments and sections.</p>
+                </div>
+                <form @onsubmit="PrepareIncrementBatch" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Effective Date</span>
+                            <input type="date" value="@filter.EffectDate.ToString("yyyy-MM-dd")" @onchange="e => filter.EffectDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Increment Method</span>
+                            <select @bind="isIncrementPercentage" class="company-form-input">
+                                <option value="true">Percentage of Gross (%)</option>
+                                <option value="false">Fixed Amount (BDT)</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Increment Value @(isIncrementPercentage ? "(%)" : "(BDT)")</span>
+                            <input type="number" step="0.5" @bind="incrementValue" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Section</span>
+                            <select @bind="filter.SectionId" class="company-form-input">
+                                <option value="">-- All Sections --</option>
+                                @foreach (var s in sections) { <option value="@s.SectionId">@s.SectionName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code</span>
+                            <input @bind="filter.EmpCode" placeholder="Specific Emp Code" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadSavedIncrements">View History</button>
+                        <button type="submit" class="btn-primary-action">
+                            <span>Preview Increment Batch</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Increment Roster (@increments.Count Employees)</h2>
+                        <p>Total Increment: <strong>৳ @increments.Sum(i => i.IncrementAmount).ToString("N2")</strong> | Post-Increment Gross: ৳ @increments.Sum(i => i.PromotedGross).ToString("N2")</p>
+                    </div>
+                    @if (increments.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="SaveIncrements">Confirm & Apply All Increments</button>
+                        </div>
+                    }
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" @onchange="ToggleSelectAllIncrements" checked="@(increments.Count > 0 && increments.All(i => i.IsSelected))" /></th>
+                                <th>Emp Code</th>
+                                <th>Name / Designation</th>
+                                <th>Department</th>
+                                <th style="text-align:right;">Current Gross</th>
+                                <th style="text-align:right;">Increment</th>
+                                <th style="text-align:right;">New Gross</th>
+                                <th style="text-align:center;">Effective</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var i in increments)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" @bind="i.IsSelected" /></td>
+                                    <td><strong>@i.EmpCode</strong></td>
+                                    <td><strong>@i.EmpName</strong><div class="badge-sub">@i.DesignationName</div></td>
+                                    <td>@i.DepartmentName</td>
+                                    <td style="text-align:right;">৳ @i.PreGross.ToString("N0")</td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="i.IncrementAmount" class="table-inline-input" style="width:85px;text-align:right;" @bind:after="() => RecalculateIncrementRow(i)" />
+                                    </td>
+                                    <td style="text-align:right;"><strong style="color:#16a34a;">৳ @i.PromotedGross.ToString("N0")</strong></td>
+                                    <td style="text-align:center;"><small>@i.EffectiveDate.ToString("dd-MMM-yyyy")</small></td>
+                                    <td>
+                                        @if (i.IncrementId > 0)
+                                        {
+                                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Increment", i.EmpName, () => DeleteIncrement(i.IncrementId))'>Revert</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 4. PROMOTION ==================== -->
+    @if (activeTab == "promotion" && canAccessPromotion)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Employee Promotion Entry</h2>
+                    <p>Promote employee to higher designation, grade, and updated gross salary structure.</p>
+                </div>
+                <form @onsubmit="SavePromotion" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code <strong class="req-star">*</strong></span>
+                            <div style="display:flex;gap:8px;">
+                                <input @bind="promotionEmpCode" placeholder="e.g. 10025" required class="company-form-input" />
+                                <button type="button" class="btn-secondary-action" @onclick="SearchPromotionEmployee">Search</button>
+                            </div>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Name</span>
+                            <input value="@promotionItem.EmpName" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Current Designation</span>
+                            <input value="@promotionItem.PreDesignation" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Current Gross Salary</span>
+                            <input value="৳ @promotionItem.PreGross.ToString("N0")" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">New Promoted Designation <strong class="req-star">*</strong></span>
+                            <select @bind="promotionItem.PromDesignationId" required class="company-form-input" @bind:after="OnPromotionDesignationSelected">
+                                <option value="0">-- Select Promoted Designation --</option>
+                                @foreach (var d in designations) { <option value="@d.DesignationId">@d.DesignationName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">New Grade</span>
+                            <input @bind="promotionItem.PromGrade" placeholder="e.g. Grade-3" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">New Promoted Gross Salary <strong class="req-star">*</strong></span>
+                            <input type="number" @bind="promotionItem.PromGross" required class="company-form-input" @bind:after="OnPromotionGrossChanged" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Promotion Increment Amount</span>
+                            <input type="number" @bind="promotionItem.PromotionAmount" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Effective Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@promotionItem.EffectiveDate.ToString("yyyy-MM-dd")" @onchange="e => promotionItem.EffectiveDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Promotion Remarks</span>
+                            <input @bind="promotionItem.IncrDesc" placeholder="e.g. Annual Performance Promotion" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="ResetPromotionForm">Reset</button>
+                        <button type="submit" class="btn-primary-action">
+                            <span>Confirm Promotion</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Promotion History Records (@promotions.Count)</h2>
+                        <p>Chronological audit log of employee promotions and grade elevations.</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name</th>
+                                <th>Previous Title</th>
+                                <th>Promoted Title</th>
+                                <th style="text-align:right;">Pre Gross</th>
+                                <th style="text-align:right;">New Gross</th>
+                                <th style="text-align:center;">Effective</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in promotions)
+                            {
+                                <tr>
+                                    <td><strong>@p.EmpCode</strong></td>
+                                    <td>@p.EmpName</td>
+                                    <td><small>@p.PreDesignation</small></td>
+                                    <td><strong style="color:#2563eb;">@p.PromDesignation</strong></td>
+                                    <td style="text-align:right;">৳ @p.PreGross.ToString("N0")</td>
+                                    <td style="text-align:right;"><strong style="color:#16a34a;">৳ @p.PromGross.ToString("N0")</strong></td>
+                                    <td style="text-align:center;"><small>@p.EffectiveDate.ToString("dd-MMM-yyyy")</small></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 5. EARN LEAVE ==================== -->
+    @if (activeTab == "earnleave" && canAccessEarnLeave)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Earn Leave Encashment Process</h2>
+                    <p>Annual / periodic earn leave calculation, attendance entitlement, and financial encashment.</p>
+                </div>
+                <form @onsubmit="ProcessEarnLeave" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">EL Segment / Title</span>
+                            <input @bind="filter.TitleOrType" placeholder="e.g. Worker Annual EL 2026" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Process Date</span>
+                            <input type="date" value="@filter.EffectDate.ToString("yyyy-MM-dd")" @onchange="e => filter.EffectDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Counting Start Date</span>
+                            <input type="date" value="@filter.StartDate.ToString("yyyy-MM-dd")" @onchange="e => filter.StartDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Counting End Date</span>
+                            <input type="date" value="@filter.EndDate.ToString("yyyy-MM-dd")" @onchange="e => filter.EndDate = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString())" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Section</span>
+                            <select @bind="filter.SectionId" class="company-form-input">
+                                <option value="">-- All Sections --</option>
+                                @foreach (var s in sections) { <option value="@s.SectionId">@s.SectionName</option> }
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadSavedEarnLeaves">Load Saved</button>
+                        <button type="submit" class="btn-primary-action">
+                            <span>Calculate Earn Leave</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Earn Leave Sheet (@earnLeaves.Count Records)</h2>
+                        <p>Total Payable: <strong>৳ @earnLeaves.Sum(e => e.NetPayable).ToString("N2")</strong> | Total Earn Days: @earnLeaves.Sum(e => e.NetElDays) Days</p>
+                    </div>
+                    @if (earnLeaves.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="SaveEarnLeaves">Save All EL Records</button>
+                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Earn Leave Batch", filter.EffectDate.ToString("MMMM yyyy"), DeleteEarnLeaves)'>Clear Batch</button>
+                        </div>
+                    }
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" @onchange="ToggleSelectAllEarnLeaves" checked="@(earnLeaves.Count > 0 && earnLeaves.All(e => e.IsSelected))" /></th>
+                                <th>Emp Code</th>
+                                <th>Name</th>
+                                <th>Designation</th>
+                                <th style="text-align:center;">Present</th>
+                                <th style="text-align:center;">Total EL</th>
+                                <th style="text-align:center;">Taken</th>
+                                <th style="text-align:center;">Net EL</th>
+                                <th style="text-align:right;">Daily Rate</th>
+                                <th style="text-align:right;">Net Payable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var el in earnLeaves)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" @bind="el.IsSelected" /></td>
+                                    <td><strong>@el.EmpCode</strong></td>
+                                    <td>@el.EmpName</td>
+                                    <td><small>@el.DesignationName</small></td>
+                                    <td style="text-align:center;"><span class="type-pill">@el.TotalPresentDays</span></td>
+                                    <td style="text-align:center;">@el.TotalElDays</td>
+                                    <td style="text-align:center;"><span style="color:#e11d48;">@el.ElTaken</span></td>
+                                    <td style="text-align:center;"><strong style="color:#16a34a;">@el.NetElDays d</strong></td>
+                                    <td style="text-align:right;">৳ @el.ElRate.ToString("N0")</td>
+                                    <td style="text-align:right;"><strong>৳ @el.NetPayable.ToString("N0")</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 6. ALLOWANCE PROCESS ==================== -->
+    @if (activeTab == "allowance" && canAccessAllowance)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Allowance & Deduction Setup</h2>
+                    <p>Manage employee fixed monthly allowances, special payouts, tax deductions, and bank/cash allocations.</p>
+                </div>
+                <form @onsubmit="LoadAllowances" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Section</span>
+                            <select @bind="filter.SectionId" class="company-form-input">
+                                <option value="">-- All Sections --</option>
+                                @foreach (var s in sections) { <option value="@s.SectionId">@s.SectionName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code</span>
+                            <input @bind="filter.EmpCode" placeholder="Specific Emp Code" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Filter Employees</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Allowance Grid (@allowances.Count Employees)</h2>
+                        <p>Total Allowance: <strong>৳ @allowances.Sum(a => a.AllowanceAmount).ToString("N2")</strong> | Tax: ৳ @allowances.Sum(a => a.TaxAmount).ToString("N2")</p>
+                    </div>
+                    @if (allowances.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="SaveAllowances">Save All Allowances</button>
+                        </div>
+                    }
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name / Designation</th>
+                                <th style="text-align:right;">Gross</th>
+                                <th style="text-align:right;">Special Allowance</th>
+                                <th style="text-align:right;">Tax Deduction</th>
+                                <th style="text-align:right;">Bank Amount</th>
+                                <th style="text-align:right;">Cash Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var al in allowances)
+                            {
+                                <tr>
+                                    <td><strong>@al.EmpCode</strong></td>
+                                    <td><strong>@al.EmpName</strong><div class="badge-sub">@al.DesignationName</div></td>
+                                    <td style="text-align:right;">৳ @al.Gross.ToString("N0")</td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="al.AllowanceAmount" class="table-inline-input" style="width:85px;text-align:right;" />
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="al.TaxAmount" class="table-inline-input" style="width:85px;text-align:right;" />
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="al.BankAmount" class="table-inline-input" style="width:85px;text-align:right;" />
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <input type="number" @bind="al.CashAmount" class="table-inline-input" style="width:85px;text-align:right;" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 7. INSURANCE ==================== -->
+    @if (activeTab == "insurance" && canAccessInsurance)
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Group & PPA Insurance Registry</h2>
+                    <p>Track employee insurance coverage, active policy holders, and nominee information.</p>
+                </div>
+                <form @onsubmit="LoadInsuranceMembers" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Policy Status Filter</span>
+                            <select @bind="insuranceFilterType" class="company-form-input">
+                                <option value="ALL">All Active Employees</option>
+                                <option value="ACTIVE_ONLY">Insurance Holders Only</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code</span>
+                            <input @bind="filter.EmpCode" placeholder="Specific Emp Code" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Filter Members</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Insurance Member Roster (@insuranceList.Count Members)</h2>
+                        <p>Active Insured: <strong>@insuranceList.Count(i => i.InsuranceHolder == "Y")</strong> | Non-Insured: @insuranceList.Count(i => i.InsuranceHolder != "Y")</p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name / Desig</th>
+                                <th>Department</th>
+                                <th style="text-align:center;">Joining</th>
+                                <th style="text-align:center;">Age</th>
+                                <th style="text-align:right;">Gross</th>
+                                <th>Nominee / Relation</th>
+                                <th style="text-align:center;">Insured Status</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ins in insuranceList)
+                            {
+                                <tr>
+                                    <td><strong>@ins.EmpCode</strong></td>
+                                    <td><strong>@ins.EmpName</strong><div class="badge-sub">@ins.DesignationName</div></td>
+                                    <td>@ins.DepartmentName</td>
+                                    <td style="text-align:center;"><small>@(ins.DateOfJoining?.ToString("dd-MMM-yyyy") ?? "-")</small></td>
+                                    <td style="text-align:center;"><span class="type-pill">@ins.Age yrs</span></td>
+                                    <td style="text-align:right;">৳ @ins.Gross.ToString("N0")</td>
+                                    <td>
+                                        <div>@(!string.IsNullOrWhiteSpace(ins.NomineeName) ? ins.NomineeName : "-")</div>
+                                        <small class="badge-sub">@ins.NomineeRelation</small>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span class="@(ins.InsuranceHolder == "Y" ? "admin-badge" : "type-pill")">
+                                            @(ins.InsuranceHolder == "Y" ? "Insured (Yes)" : "No")
+                                        </span>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <button type="button" class="action-btn @(ins.InsuranceHolder == "Y" ? "btn-delete-ctrl" : "btn-edit-ctrl")" @onclick="() => ToggleInsuranceStatus(ins)">
+                                            @(ins.InsuranceHolder == "Y" ? "Remove" : "Enroll")
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? TabName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? QueryTab { get; set; }
+
+    private bool loaded;
+    private bool hasAccess;
+    private int currentUserId;
+    private string currentUserName = "User";
+    private bool currentUserIsAdmin;
+
+    private string activeTab = "advancesalary";
+
+    // Permission flags
+    private bool canAccessAdvanceSalary;
+    private bool canAccessFestivalBonus;
+    private bool canAccessIncrement;
+    private bool canAccessPromotion;
+    private bool canAccessEarnLeave;
+    private bool canAccessAllowance;
+    private bool canAccessInsurance;
+
+    // Filter and Master Data
+    private AdvantageFilter filter = new();
+    private List<UnitItem> units = [];
+    private List<DepartmentItem> departments = [];
+    private List<SectionItem> sections = [];
+    private List<DesignationItem> designations = [];
+    private List<CategoryItem> categories = [];
+
+    // Module Data
+    private List<AdvanceSalaryItem> advanceSalaries = [];
+    private int advRoundAmount = 100;
+
+    private List<FestivalBonusItem> festivalBonuses = [];
+    private string bonusBasis = "BASIC_100";
+
+    private List<IncrementItem> increments = [];
+    private bool isIncrementPercentage = true;
+    private decimal incrementValue = 5;
+
+    private List<PromotionItem> promotions = [];
+    private string promotionEmpCode = "";
+    private PromotionItem promotionItem = new();
+
+    private List<EarnLeaveProcessItem> earnLeaves = [];
+    private List<AllowanceItem> allowances = [];
+
+    private List<InsuranceItem> insuranceList = [];
+    private string insuranceFilterType = "ALL";
+
+    // Feedback & Confirmation
+    private string? successMessage;
+    private string? errorMessage;
+    private bool showConfirmModal;
+    private string confirmItemTitle = "";
+    private string confirmItemType = "";
+    private Func<Task>? pendingDeleteAction;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out currentUserId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        currentUserName = session?.GetString("UserName") ?? "User";
+        currentUserIsAdmin = session?.GetString("IsAdmin") == "1";
+
+        var menu = await PayrollRepository.GetMenuAsync(currentUserId);
+        canAccessAdvanceSalary = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 147 || item.Name.Contains("Advance Salary", StringComparison.OrdinalIgnoreCase));
+        canAccessFestivalBonus = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 113 || item.Name.Contains("Festival Bonus", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("Bonus", StringComparison.OrdinalIgnoreCase));
+        canAccessIncrement = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 45 || item.Name.Contains("Increment", StringComparison.OrdinalIgnoreCase));
+        canAccessPromotion = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 130 || item.Name.Contains("Promotion", StringComparison.OrdinalIgnoreCase));
+        canAccessEarnLeave = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 117 || item.Name.Contains("Earn Leave", StringComparison.OrdinalIgnoreCase));
+        canAccessAllowance = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 126 || item.Name.Contains("Allowance", StringComparison.OrdinalIgnoreCase));
+        canAccessInsurance = currentUserIsAdmin || HasModuleRecursive(menu, item => item.Id == 118 || item.Name.Contains("Insurance", StringComparison.OrdinalIgnoreCase));
+
+        hasAccess = canAccessAdvanceSalary || canAccessFestivalBonus || canAccessIncrement || canAccessPromotion || canAccessEarnLeave || canAccessAllowance || canAccessInsurance;
+
+        if (!hasAccess)
+        {
+            loaded = true;
+            return;
+        }
+
+        units = await MasterRepository.GetUnitsAsync();
+        departments = await MasterRepository.GetDepartmentsAsync();
+        sections = await MasterRepository.GetSectionsAsync();
+        designations = await MasterRepository.GetDesignationsAsync();
+        categories = await MasterRepository.GetCategoriesAsync();
+
+        ResolveActiveTab();
+        loaded = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (loaded)
+        {
+            ResolveActiveTab();
+        }
+    }
+
+    private void ResolveActiveTab()
+    {
+        var uri = Navigation.Uri.ToLowerInvariant();
+        var tab = QueryTab ?? TabName;
+
+        if (!string.IsNullOrWhiteSpace(tab))
+        {
+            var t = tab.ToLowerInvariant();
+            if (t.Contains("advance") && canAccessAdvanceSalary) activeTab = "advancesalary";
+            else if (t.Contains("bonus") && canAccessFestivalBonus) activeTab = "bonus";
+            else if (t.Contains("increment") && canAccessIncrement) activeTab = "increment";
+            else if (t.Contains("promotion") && canAccessPromotion) activeTab = "promotion";
+            else if (t.Contains("earn") || t.Contains("leave") && canAccessEarnLeave) activeTab = "earnleave";
+            else if (t.Contains("allowance") && canAccessAllowance) activeTab = "allowance";
+            else if (t.Contains("insurance") && canAccessInsurance) activeTab = "insurance";
+        }
+        else if (uri.Contains("/advancesalary") && canAccessAdvanceSalary) activeTab = "advancesalary";
+        else if (uri.Contains("/festivalbonus") && canAccessFestivalBonus) activeTab = "bonus";
+        else if (uri.Contains("/incremententry") && canAccessIncrement) activeTab = "increment";
+        else if (uri.Contains("/promotion") && canAccessPromotion) activeTab = "promotion";
+        else if (uri.Contains("/earnleave") && canAccessEarnLeave) activeTab = "earnleave";
+        else if (uri.Contains("/allowanceprocess") && canAccessAllowance) activeTab = "allowance";
+        else if (uri.Contains("/insurance") && canAccessInsurance) activeTab = "insurance";
+        else
+        {
+            if (canAccessAdvanceSalary) activeTab = "advancesalary";
+            else if (canAccessFestivalBonus) activeTab = "bonus";
+            else if (canAccessIncrement) activeTab = "increment";
+            else if (canAccessPromotion) activeTab = "promotion";
+            else if (canAccessEarnLeave) activeTab = "earnleave";
+            else if (canAccessAllowance) activeTab = "allowance";
+            else if (canAccessInsurance) activeTab = "insurance";
+        }
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private static bool HasModuleRecursive(List<NavigationItem> items, Func<NavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item)) return true;
+            if (item.Children.Count > 0 && HasModuleRecursive(item.Children, predicate)) return true;
+        }
+        return false;
+    }
+
+    // ==========================================
+    // 1. ADVANCE SALARY METHODS
+    // ==========================================
+    private void OnAdvanceMonthChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString() + "-01", out var dt))
+        {
+            filter.EffectDate = dt;
+            filter.StartDate = new DateTime(dt.Year, dt.Month, 1);
+            filter.EndDate = new DateTime(dt.Year, dt.Month, Math.Min(DateTime.Today.Day, DateTime.DaysInMonth(dt.Year, dt.Month)));
+        }
+    }
+
+    private async Task ProcessAdvanceSalary()
+    {
+        try
+        {
+            advanceSalaries = await AdvantageRepository.CalculateAdvanceSalariesAsync(filter, advRoundAmount);
+            successMessage = $"Successfully computed advance salary for {advanceSalaries.Count} active employees.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadSavedAdvanceSalaries()
+    {
+        try
+        {
+            advanceSalaries = await AdvantageRepository.GetAdvanceSalariesAsync(filter.EffectDate, filter.UnitId, filter.DepartmentId, filter.SectionId);
+            successMessage = $"Loaded {advanceSalaries.Count} saved advance salary records from database.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void ToggleSelectAllAdvances(ChangeEventArgs e)
+    {
+        var chk = (bool)(e.Value ?? false);
+        foreach (var a in advanceSalaries) a.IsSelected = chk;
+    }
+
+    private void RecalculateAdvanceRow(AdvanceSalaryItem item)
+    {
+        if (item.AccType == "Bank")
+        {
+            item.BankPayable = item.AdvanceAmount;
+            item.CashPayable = 0;
+        }
+        else
+        {
+            item.CashPayable = item.AdvanceAmount;
+            item.BankPayable = 0;
+        }
+    }
+
+    private async Task SaveAdvanceSalaries()
+    {
+        try
+        {
+            var selected = advanceSalaries.Where(a => a.IsSelected).ToList();
+            await AdvantageRepository.SaveAdvanceSalariesAsync(selected);
+            successMessage = $"Saved {selected.Count} advance salary records to database successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteAdvanceSalaries()
+    {
+        try
+        {
+            await AdvantageRepository.DeleteAdvanceSalariesAsync(filter.EffectDate);
+            advanceSalaries.Clear();
+            successMessage = "Advance salary batch cleared successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 2. FESTIVAL BONUS METHODS
+    // ==========================================
+    private void OnBonusMonthChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString() + "-01", out var dt))
+        {
+            filter.EffectDate = dt;
+        }
+    }
+
+    private async Task ProcessFestivalBonus()
+    {
+        try
+        {
+            festivalBonuses = await AdvantageRepository.CalculateFestivalBonusesAsync(filter, bonusBasis);
+            successMessage = $"Computed festival bonus for {festivalBonuses.Count} employees.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadSavedFestivalBonuses()
+    {
+        try
+        {
+            festivalBonuses = await AdvantageRepository.GetFestivalBonusesAsync(filter.EffectDate, filter.UnitId, filter.DepartmentId);
+            successMessage = $"Loaded {festivalBonuses.Count} saved festival bonus records from database.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void ToggleSelectAllBonuses(ChangeEventArgs e)
+    {
+        var chk = (bool)(e.Value ?? false);
+        foreach (var b in festivalBonuses) b.IsSelected = chk;
+    }
+
+    private void RecalculateBonusRow(FestivalBonusItem item)
+    {
+        if (item.AccType == "Bank")
+        {
+            item.BankPayable = item.BonusAmount;
+            item.CashPayable = 0;
+            item.NetCashPayable = 0;
+        }
+        else
+        {
+            item.CashPayable = item.BonusAmount;
+            item.NetCashPayable = Math.Max(0, item.BonusAmount - item.Stamp);
+            item.BankPayable = 0;
+        }
+    }
+
+    private async Task SaveFestivalBonuses()
+    {
+        try
+        {
+            var selected = festivalBonuses.Where(b => b.IsSelected).ToList();
+            await AdvantageRepository.SaveFestivalBonusesAsync(selected);
+            successMessage = $"Saved {selected.Count} festival bonus records to database.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteFestivalBonuses()
+    {
+        try
+        {
+            await AdvantageRepository.DeleteFestivalBonusesAsync(filter.EffectDate);
+            festivalBonuses.Clear();
+            successMessage = "Festival bonus batch deleted successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 3. INCREMENT ENTRY METHODS
+    // ==========================================
+    private async Task PrepareIncrementBatch()
+    {
+        try
+        {
+            increments = await AdvantageRepository.PrepareIncrementBatchAsync(filter, incrementValue, isIncrementPercentage);
+            successMessage = $"Prepared increment batch for {increments.Count} employees.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadSavedIncrements()
+    {
+        try
+        {
+            increments = await AdvantageRepository.GetIncrementsAsync(filter);
+            successMessage = $"Loaded {increments.Count} increment records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void ToggleSelectAllIncrements(ChangeEventArgs e)
+    {
+        var chk = (bool)(e.Value ?? false);
+        foreach (var i in increments) i.IsSelected = chk;
+    }
+
+    private void RecalculateIncrementRow(IncrementItem item)
+    {
+        item.PromotedGross = item.PreGross + item.IncrementAmount;
+        item.PromotedBasic = Math.Round(item.PreBasic + (item.IncrementAmount * 0.6m), 0);
+    }
+
+    private async Task SaveIncrements()
+    {
+        try
+        {
+            var selected = increments.Where(i => i.IsSelected).ToList();
+            await AdvantageRepository.SaveIncrementsAsync(selected);
+            successMessage = $"Successfully applied {selected.Count} increments to employee gross records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteIncrement(int id)
+    {
+        try
+        {
+            await AdvantageRepository.DeleteIncrementAsync(id);
+            increments.RemoveAll(i => i.IncrementId == id);
+            successMessage = "Increment reverted and employee gross restored successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 4. PROMOTION METHODS
+    // ==========================================
+    private async Task SearchPromotionEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(promotionEmpCode)) return;
+        try
+        {
+            var empList = await EmployeeRepository.GetEmployeesAsync(promotionEmpCode.Trim());
+            var empSummary = empList.FirstOrDefault(e => e.EmployeeCode.Equals(promotionEmpCode.Trim(), StringComparison.OrdinalIgnoreCase)) ?? empList.FirstOrDefault();
+            if (empSummary != null)
+            {
+                var emp = await EmployeeRepository.GetEmployeeAsync(empSummary.EmployeeId);
+                if (emp != null)
+                {
+                    var desigName = designations.FirstOrDefault(d => d.DesignationId == emp.DesignationId)?.DesignationName ?? "";
+                    promotionItem = new PromotionItem
+                    {
+                        EmpId = emp.EmployeeId,
+                        EmpCode = emp.EmployeeCode,
+                        EmpName = emp.EmployeeName,
+                        PreDesignationId = emp.DesignationId,
+                        PreDesignation = desigName,
+                        PreGrade = emp.EmployeeGrade,
+                        PreGross = emp.Gross,
+                        PromGross = emp.Gross,
+                        EffectiveDate = DateTime.Today
+                    };
+                    promotions = await AdvantageRepository.GetPromotionsAsync(new AdvantageFilter { EmpCode = emp.EmployeeCode });
+                    successMessage = $"Loaded official details for {emp.EmployeeName}.";
+                    errorMessage = null;
+                    return;
+                }
+            }
+            errorMessage = $"Employee with code '{promotionEmpCode}' not found.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void OnPromotionDesignationSelected()
+    {
+        var d = designations.FirstOrDefault(x => x.DesignationId == promotionItem.PromDesignationId);
+        if (d != null) promotionItem.PromDesignation = d.DesignationName;
+    }
+
+    private void OnPromotionGrossChanged()
+    {
+        promotionItem.PromotionAmount = Math.Max(0, promotionItem.PromGross - promotionItem.PreGross);
+    }
+
+    private void ResetPromotionForm()
+    {
+        promotionEmpCode = "";
+        promotionItem = new PromotionItem();
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task SavePromotion()
+    {
+        if (promotionItem.EmpId == 0)
+        {
+            errorMessage = "Please search and select an employee first.";
+            return;
+        }
+        if (promotionItem.PromDesignationId == 0)
+        {
+            errorMessage = "Please select the promoted designation.";
+            return;
+        }
+        try
+        {
+            await AdvantageRepository.SavePromotionAsync(promotionItem);
+            successMessage = $"Promotion confirmed! {promotionItem.EmpName} promoted to {promotionItem.PromDesignation} with gross ৳ {promotionItem.PromGross:N0}.";
+            promotions = await AdvantageRepository.GetPromotionsAsync(new AdvantageFilter { EmpCode = promotionItem.EmpCode });
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 5. EARN LEAVE METHODS
+    // ==========================================
+    private async Task ProcessEarnLeave()
+    {
+        try
+        {
+            earnLeaves = await AdvantageRepository.CalculateEarnLeavesAsync(filter);
+            successMessage = $"Earn leave calculated for {earnLeaves.Count} employees.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadSavedEarnLeaves()
+    {
+        try
+        {
+            earnLeaves = await AdvantageRepository.GetEarnLeavesAsync(filter.EffectDate);
+            successMessage = $"Loaded {earnLeaves.Count} saved earn leave records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void ToggleSelectAllEarnLeaves(ChangeEventArgs e)
+    {
+        var chk = (bool)(e.Value ?? false);
+        foreach (var el in earnLeaves) el.IsSelected = chk;
+    }
+
+    private async Task SaveEarnLeaves()
+    {
+        try
+        {
+            var selected = earnLeaves.Where(e => e.IsSelected).ToList();
+            await AdvantageRepository.SaveEarnLeavesAsync(selected);
+            successMessage = $"Saved {selected.Count} earn leave encashment records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteEarnLeaves()
+    {
+        try
+        {
+            await AdvantageRepository.DeleteEarnLeavesAsync(filter.EffectDate);
+            earnLeaves.Clear();
+            successMessage = "Earn leave batch cleared successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 6. ALLOWANCE PROCESS METHODS
+    // ==========================================
+    private async Task LoadAllowances()
+    {
+        try
+        {
+            allowances = await AdvantageRepository.GetAllowancesAsync(filter);
+            successMessage = $"Loaded {allowances.Count} employee allowance records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task SaveAllowances()
+    {
+        try
+        {
+            await AdvantageRepository.SaveAllowancesAsync(allowances);
+            successMessage = "Employee allowance setups saved successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 7. INSURANCE METHODS
+    // ==========================================
+    private async Task LoadInsuranceMembers()
+    {
+        try
+        {
+            filter.TitleOrType = insuranceFilterType;
+            insuranceList = await AdvantageRepository.GetInsuranceMembersAsync(filter);
+            successMessage = $"Loaded {insuranceList.Count} insurance records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task ToggleInsuranceStatus(InsuranceItem item)
+    {
+        try
+        {
+            var newStatus = item.InsuranceHolder == "Y" ? "N" : "Y";
+            await AdvantageRepository.UpdateInsuranceStatusAsync(item.EmpId, newStatus);
+            item.InsuranceHolder = newStatus;
+            successMessage = $"Insurance status updated for {item.EmpName} ({item.EmpCode}) to '{newStatus}'.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // CONFIRMATION MODAL & HEADERS
+    // ==========================================
+    private void PromptDelete(string itemType, string itemName, Func<Task> onConfirm)
+    {
+        confirmItemType = itemType;
+        confirmItemTitle = itemName;
+        pendingDeleteAction = onConfirm;
+        showConfirmModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        showConfirmModal = false;
+        pendingDeleteAction = null;
+    }
+
+    private async Task ExecuteConfirmedDelete()
+    {
+        if (pendingDeleteAction != null)
+        {
+            var action = pendingDeleteAction;
+            showConfirmModal = false;
+            pendingDeleteAction = null;
+            await action();
+        }
+    }
+
+    private string GetHeaderTitle() => activeTab switch
+    {
+        "advancesalary" => "Advance Salary Process",
+        "bonus" => "Festival Bonus Process",
+        "increment" => "Increment Entry",
+        "promotion" => "Promotion Entry",
+        "earnleave" => "Earn Leave Process",
+        "allowance" => "Allowance Process",
+        "insurance" => "Group Insurance",
+        _ => "Advantage Operations"
+    };
+
+    private string GetHeaderSubtitle() => activeTab switch
+    {
+        "advancesalary" => "Process and record monthly employee salary advances based on attendance and working days.",
+        "bonus" => "Compute festive bonuses (Eid, Puja, Annual) with stamp deductions and payout breakdown.",
+        "increment" => "Apply percentage or fixed amount salary increments and update official employee records.",
+        "promotion" => "Promote employees to higher designations, updated grades, and elevated gross salary structures.",
+        "earnleave" => "Calculate annual earned leave balances, attendance entitlement, and financial encashment.",
+        "allowance" => "Configure special allowances, performance bonuses, tax deductions, and bank allocations.",
+        "insurance" => "Manage company group insurance policies, member enrollment, and coverage reports.",
+        _ => "Employee benefits, bonuses, advances, and payroll advantages management."
+    };
+}

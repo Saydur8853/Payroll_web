@@ -1,0 +1,474 @@
+@page "/AttendanceDetails"
+@using System.Data
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject MasterRepository MasterRepository
+@inject AttendanceRepository AttendanceRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Attendance Details Register - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="control-entry-shell">
+        <section class="control-form-panel">
+            <div class="skeleton-shimmer" style="height:32px;width:240px;margin-bottom:12px;"></div>
+        </section>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to access Attendance modules.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">TIME & ATTENDANCE MANAGEMENT</p>
+            <h1>Attendance Details Register</h1>
+            <p>Daily and monthly employee attendance records, in/out timestamps, overtime hours, and attendance correction.</p>
+        </div>
+    </section>
+
+    <!-- Floating Modern Toast Notifications -->
+    <div class="toast-notification-container">
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="toast-item toast-success">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Operation Successful</div>
+                    <div class="toast-text">@successMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => successMessage = null">&times;</button>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="toast-item toast-error">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Notice / Error</div>
+                    <div class="toast-text">@errorMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => errorMessage = null">&times;</button>
+            </div>
+        }
+    </div>
+
+    <!-- Filter Console -->
+    <div class="control-entry-shell" style="margin-bottom:16px;">
+        <section class="control-form-panel">
+            <form @onsubmit="LoadAttendanceData" @onsubmit:preventDefault>
+                <div class="master-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <label class="company-form-group">
+                        <span class="company-form-label">From Date <strong class="req-star">*</strong></span>
+                        <input type="date" value="@filter.FromDate.ToString("yyyy-MM-dd")" @onchange="OnFromDateChanged" class="company-form-input" />
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">To Date <strong class="req-star">*</strong></span>
+                        <input type="date" value="@filter.ToDate.ToString("yyyy-MM-dd")" @onchange="OnToDateChanged" class="company-form-input" />
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Department</span>
+                        <select @bind="filter.DepartmentId" class="company-form-input">
+                            <option value="">-- All Departments --</option>
+                            @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                        </select>
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Section</span>
+                        <select @bind="filter.SectionId" class="company-form-input">
+                            <option value="">-- All Sections --</option>
+                            @foreach (var s in sections) { <option value="@s.SectionId">@s.SectionName</option> }
+                        </select>
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Shift</span>
+                        <select @bind="filter.ShiftId" class="company-form-input">
+                            <option value="">-- All Shifts --</option>
+                            @foreach (var sf in shifts) { <option value="@sf.ShiftId">@sf.ShiftName</option> }
+                        </select>
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Status</span>
+                        <select @bind="filter.Status" class="company-form-input">
+                            <option value="">-- All Statuses --</option>
+                            <option value="P">Present (P)</option>
+                            <option value="A">Absent (A)</option>
+                            <option value="L">Leave (L)</option>
+                            <option value="H">Holiday (H)</option>
+                            <option value="W">Weekend (W)</option>
+                        </select>
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Employee Code</span>
+                        <input @bind="filter.EmpCode" placeholder="Specific Code" class="company-form-input" />
+                    </label>
+                </div>
+                <div class="control-form-actions" style="margin-top:14px;gap:8px;">
+                    <button type="button" class="btn-secondary-action" @onclick="ResetFilter">Reset</button>
+                    @if (attendanceList.Count > 0)
+                    {
+                        <button type="button" class="btn-secondary-action" style="background:#16a34a;color:#fff;border:none;" @onclick="ExportToCsv">Export to CSV</button>
+                    }
+                    <button type="submit" class="btn-primary-action" disabled="@isLoadingData">
+                        <span>@(isLoadingData ? "Loading..." : "Search & Filter")</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    @if (hasSearched)
+    {
+        <!-- KPI Summary Cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;margin-bottom:16px;">
+            <div style="background:#fff;padding:12px;border-radius:10px;border:1px solid #e2e8f0;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#64748b;">TOTAL</div>
+                <div style="font-size:18px;font-weight:800;color:#0f172a;">@stats.TotalCount</div>
+            </div>
+            <div style="background:#f0fdf4;padding:12px;border-radius:10px;border:1px solid #bbf7d0;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#16a34a;">PRESENT</div>
+                <div style="font-size:18px;font-weight:800;color:#15803d;">@stats.PresentCount</div>
+            </div>
+            <div style="background:#fef2f2;padding:12px;border-radius:10px;border:1px solid #fecaca;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#dc2626;">ABSENT</div>
+                <div style="font-size:18px;font-weight:800;color:#b91c1c;">@stats.AbsentCount</div>
+            </div>
+            <div style="background:#fefce8;padding:12px;border-radius:10px;border:1px solid #fef08a;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#ca8a04;">LEAVE</div>
+                <div style="font-size:18px;font-weight:800;color:#a16207;">@stats.LeaveCount</div>
+            </div>
+            <div style="background:#eff6ff;padding:12px;border-radius:10px;border:1px solid #bfdbfe;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#2563eb;">WEEKEND / HOLIDAY</div>
+                <div style="font-size:18px;font-weight:800;color:#1d4ed8;">@(stats.WeekendCount + stats.HolidayCount)</div>
+            </div>
+            <div style="background:#faf5ff;padding:12px;border-radius:10px;border:1px solid #e9d5ff;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#9333ea;">TOTAL OT HOURS</div>
+                <div style="font-size:18px;font-weight:800;color:#7e22ce;">@stats.TotalOtHours.ToString("N1") h</div>
+            </div>
+        </div>
+
+        <section class="control-list-panel">
+            <div class="control-list-header">
+                <div>
+                    <h2>Attendance Register (@attendanceList.Count Records)</h2>
+                    <p>Standard employee daily in-time, out-time, overtime hours, and attendance statuses.</p>
+                </div>
+            </div>
+            <div class="controls-table-container" style="max-height:600px;overflow:auto;">
+                <table class="controls-data-table">
+                    <thead>
+                        <tr>
+                            <th>Emp Code</th>
+                            <th>Name / Desig</th>
+                            <th>Department</th>
+                            <th>Shift</th>
+                            <th style="text-align:center;">Date</th>
+                            <th style="text-align:center;">In Time</th>
+                            <th style="text-align:center;">Out Time</th>
+                            <th style="text-align:center;">Late</th>
+                            <th style="text-align:center;">OT</th>
+                            <th style="text-align:center;">Status</th>
+                            <th style="text-align:center;">Night</th>
+                            <th>Remarks</th>
+                            <th style="text-align:center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in attendanceList)
+                        {
+                            <tr>
+                                <td><strong>@a.EmpCode</strong></td>
+                                <td>@a.EmpName<div class="badge-sub">@a.DesignationName</div></td>
+                                <td>@a.DepartmentName<small class="badge-sub">@a.SectionName</small></td>
+                                <td><span class="type-pill">@a.ShiftName</span></td>
+                                <td style="text-align:center;"><small>@a.AttdDate.ToString("dd-MMM-yyyy")</small></td>
+                                <td style="text-align:center;">
+                                    @if (editingRecord?.EmpId == a.EmpId && editingRecord?.AttdDate == a.AttdDate)
+                                    {
+                                        <input @bind="editingRecord.InTime" class="company-form-input" style="width:90px;padding:2px 4px;font-size:12px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>@(string.IsNullOrWhiteSpace(a.InTime) ? "--" : a.InTime)</span>
+                                    }
+                                </td>
+                                <td style="text-align:center;">
+                                    @if (editingRecord?.EmpId == a.EmpId && editingRecord?.AttdDate == a.AttdDate)
+                                    {
+                                        <input @bind="editingRecord.OutTime" class="company-form-input" style="width:90px;padding:2px 4px;font-size:12px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>@(string.IsNullOrWhiteSpace(a.OutTime) ? "--" : a.OutTime)</span>
+                                    }
+                                </td>
+                                <td style="text-align:center;">
+                                    <small style="color:@(a.LateMinutes > 0 ? "#dc2626" : "#64748b");font-weight:@(a.LateMinutes > 0 ? "700" : "normal");">@a.LateMinutes m</small>
+                                </td>
+                                <td style="text-align:center;">
+                                    @if (editingRecord?.EmpId == a.EmpId && editingRecord?.AttdDate == a.AttdDate)
+                                    {
+                                        <input type="number" step="0.5" @bind="editingRecord.OverTimeHours" class="company-form-input" style="width:60px;padding:2px 4px;font-size:12px;" />
+                                    }
+                                    else
+                                    {
+                                        <strong style="color:@(a.OverTimeHours > 0 ? "#16a34a" : "#64748b");">@a.OverTimeHours h</strong>
+                                    }
+                                </td>
+                                <td style="text-align:center;">
+                                    @if (editingRecord?.EmpId == a.EmpId && editingRecord?.AttdDate == a.AttdDate)
+                                    {
+                                        <select @bind="editingRecord.Status" class="company-form-input" style="width:65px;padding:2px 4px;font-size:12px;">
+                                            <option value="P">P</option>
+                                            <option value="A">A</option>
+                                            <option value="L">L</option>
+                                            <option value="H">H</option>
+                                            <option value="W">W</option>
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <span class="@(a.Status == "P" ? "type-pill" : a.Status == "A" ? "admin-badge" : "type-pill")" style="@(a.Status == "A" ? "background:#fee2e2;color:#dc2626;" : a.Status == "L" ? "background:#fef9c3;color:#a16207;" : "")">
+                                            @a.Status
+                                        </span>
+                                    }
+                                </td>
+                                <td style="text-align:center;">
+                                    <small>@(a.NightStatus == "Y" ? "🌙 Yes" : "No")</small>
+                                </td>
+                                <td>
+                                    @if (editingRecord?.EmpId == a.EmpId && editingRecord?.AttdDate == a.AttdDate)
+                                    {
+                                        <input @bind="editingRecord.AttdRemarks" class="company-form-input" style="width:110px;padding:2px 4px;font-size:12px;" />
+                                    }
+                                    else
+                                    {
+                                        <small>@a.AttdRemarks</small>
+                                    }
+                                </td>
+                                <td style="text-align:center;white-space:nowrap;">
+                                    @if (editingRecord?.EmpId == a.EmpId && editingRecord?.AttdDate == a.AttdDate)
+                                    {
+                                        <button type="button" class="action-btn" style="background:#16a34a;color:#fff;" @onclick="SaveEditingRecord">Save</button>
+                                        <button type="button" class="action-btn" @onclick="CancelEditing">Cancel</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="action-btn" @onclick="() => StartEditing(a)">Edit</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else
+    {
+        <div style="padding:48px 24px;text-align:center;color:#64748b;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;color:#94a3b8;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <h3 style="margin:0 0 6px;color:#334155;">Ready to Search Attendance Records</h3>
+            <p style="margin:0;font-size:13px;">Select your desired date range or department filter above and click <strong>Search & Filter</strong>.</p>
+        </div>
+    }
+}
+
+@code {
+    private bool loaded;
+    private bool hasAccess;
+    private bool hasSearched;
+    private bool isLoadingData;
+
+    private AttendanceFilter filter = new();
+    private List<DepartmentItem> departments = [];
+    private List<SectionItem> sections = [];
+    private List<ShiftOptionItem> shifts = [];
+
+    private List<AttendanceRecordItem> attendanceList = [];
+    private AttendanceSummaryStats stats = new();
+    private AttendanceRecordItem? editingRecord;
+
+    // 5-Second Auto-Dismiss Toast
+    private string? _successMessage;
+    private string? successMessage
+    {
+        get => _successMessage;
+        set
+        {
+            _successMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _errorMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private string? _errorMessage;
+    private string? errorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            _errorMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _successMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private CancellationTokenSource? toastCts;
+    private void ScheduleToastDismiss()
+    {
+        toastCts?.Cancel();
+        toastCts = new CancellationTokenSource();
+        var token = toastCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(5000, token);
+                if (!token.IsCancellationRequested)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        _successMessage = null;
+                        _errorMessage = null;
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch (TaskCanceledException) { }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out _))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        hasAccess = true;
+        departments = await MasterRepository.GetDepartmentsAsync();
+        sections = await MasterRepository.GetSectionsAsync();
+        shifts = await AttendanceRepository.GetShiftsAsync();
+        loaded = true;
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt)) filter.FromDate = dt;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt)) filter.ToDate = dt;
+    }
+
+    private void ResetFilter()
+    {
+        filter = new AttendanceFilter();
+        hasSearched = false;
+        attendanceList.Clear();
+    }
+
+    private async Task LoadAttendanceData()
+    {
+        isLoadingData = true;
+        try
+        {
+            attendanceList = await AttendanceRepository.GetAttendanceRecordsAsync(filter);
+            stats = await AttendanceRepository.GetAttendanceStatsAsync(filter);
+            hasSearched = true;
+            successMessage = $"Found {attendanceList.Count} attendance records.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Data Load Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+
+    private void StartEditing(AttendanceRecordItem item)
+    {
+        editingRecord = new AttendanceRecordItem
+        {
+            EmpId = item.EmpId,
+            EmpCode = item.EmpCode,
+            EmpName = item.EmpName,
+            AttdDate = item.AttdDate,
+            InTime = item.InTime,
+            OutTime = item.OutTime,
+            OverTimeHours = item.OverTimeHours,
+            LateMinutes = item.LateMinutes,
+            Status = item.Status,
+            Status2 = item.Status2,
+            NightStatus = item.NightStatus,
+            AttdRemarks = item.AttdRemarks
+        };
+    }
+
+    private void CancelEditing()
+    {
+        editingRecord = null;
+    }
+
+    private async Task SaveEditingRecord()
+    {
+        if (editingRecord == null) return;
+        try
+        {
+            await AttendanceRepository.UpdateAttendanceRecordAsync(editingRecord);
+            successMessage = $"Updated attendance for {editingRecord.EmpName} on {editingRecord.AttdDate:dd-MMM-yyyy}.";
+            editingRecord = null;
+            await LoadAttendanceData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Update Failed: {ex.Message}";
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("\"Emp Code\",\"Name\",\"Department\",\"Shift\",\"Date\",\"In Time\",\"Out Time\",\"Late(m)\",\"OT(h)\",\"Status\",\"Night\",\"Remarks\"");
+            foreach (var a in attendanceList)
+            {
+                sb.AppendLine($"\"{a.EmpCode}\",\"{a.EmpName}\",\"{a.DepartmentName}\",\"{a.ShiftName}\",\"{a.AttdDate:dd-MMM-yyyy}\",\"{a.InTime}\",\"{a.OutTime}\",\"{a.LateMinutes}\",\"{a.OverTimeHours}\",\"{a.Status}\",\"{a.NightStatus}\",\"{a.AttdRemarks}\"");
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = $"Attendance_Details_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("eval", "const a = document.createElement('a'); a.href = 'data:text/csv;base64," + base64 + "'; a.download = '" + filename + "'; a.click();");
+            successMessage = $"Exported {attendanceList.Count} records to {filename}.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Export Failed: {ex.Message}";
+        }
+    }
+}

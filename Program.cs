@@ -22,6 +22,9 @@ builder.Services.AddSession(options =>
 builder.Services.AddScoped<PayrollRepository>();
 builder.Services.AddScoped<EmployeeRepository>();
 builder.Services.AddScoped<MasterRepository>();
+builder.Services.AddScoped<AdvantageRepository>();
+builder.Services.AddScoped<SalaryRepository>();
+builder.Services.AddScoped<AttendanceRepository>();
 builder.Services.AddScoped<EmployeeSchemaMigration>();
 
 var app = builder.Build();
@@ -34,9 +37,6 @@ if (args.Contains("--check-db", StringComparer.OrdinalIgnoreCase))
     Console.WriteLine("Oracle database connection succeeded.");
     return;
 }
-
-
-
 
 if (args.Contains("--check-dashboard", StringComparer.OrdinalIgnoreCase))
 {

@@ -364,6 +364,160 @@
                 <span class="menu-text">@item.Name</span>
             </NavLink>
         }
+        else if (IsAdvanceSalaryItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=advancesalary" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsFestivalBonusItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=bonus" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsIncrementItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=increment" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsPromotionItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=promotion" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsEarnLeaveItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=earnleave" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsAllowanceItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=allowance" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsInsuranceItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/Advantage?tab=insurance" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsAdvanceDuesDeductionItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=advancedues" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsHourPunishmentItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=punishment" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsLeaveProcessItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=leave" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsMaternityLeaveItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=maternity" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsMicroSalaryItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=microsalary" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsBinarySalaryItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=binary" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsMicroLeaveItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=microleave" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSalaryPaymentItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=payment" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsBuyerManualItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=buyer" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSalarySetupItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=salarysetup" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsSalaryProcessItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/SalaryProcessing?tab=salary" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsUploadFileItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/UploadAttendanceFile" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsAttendanceDetailsItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/AttendanceDetails" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsRawAttendanceDataItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/RawAttendanceData" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
+        else if (IsMicroAttendanceItem(item.Name))
+        {
+            <NavLink class="menu-item menu-link-activeable" href="/MicroAttendance" Match="NavLinkMatch.Prefix" title="@item.Name">
+                @if (Level == 0) { <span class="menu-icon-wrap">@GetIcon(item.Name)</span> } else { <span class="menu-bullet-dot"></span> }
+                <span class="menu-text">@item.Name</span>
+            </NavLink>
+        }
         else if (IsUserManagementItem(item.Name))
         {
             <NavLink class="menu-item menu-link-activeable" href="/UserManagement?activeTab=users" Match="NavLinkMatch.Prefix" title="@item.Name">
@@ -685,6 +839,155 @@
             || name.Equals("Quater", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Quarter Setup", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Quater Setup", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAdvanceSalaryItem(string name)
+    {
+        return name.Contains("Advance Salary", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Advance_Salary", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFestivalBonusItem(string name)
+    {
+        return name.Contains("Festival Bonus", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Bonus Process", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Bonus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsIncrementItem(string name)
+    {
+        return name.Contains("Increment Entry", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Increment_Entry", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Yearly Increment", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsPromotionItem(string name)
+    {
+        return name.Equals("Promotion", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Promotion Entry", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsEarnLeaveItem(string name)
+    {
+        return name.Contains("Earn Leave", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Annual Leave", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Earn_Leave", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAllowanceItem(string name)
+    {
+        return name.Contains("Allowance Process", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Allowance_Process", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Allowance", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsInsuranceItem(string name)
+    {
+        return name.Contains("Insurance", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAdvanceDuesDeductionItem(string name)
+    {
+        return name.Contains("Advance-Dues-Deduction", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Advance_Dues_Deduction", StringComparison.OrdinalIgnoreCase)
+            || (name.Contains("Advance", StringComparison.OrdinalIgnoreCase) && name.Contains("Dues", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsHourPunishmentItem(string name)
+    {
+        return name.Contains("Hour Punishment", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Hour_Punishment", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Punishment", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLeaveProcessItem(string name)
+    {
+        return name.Equals("Leave Process", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Leave_Process", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Leave Posting", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Leave Entry", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMaternityLeaveItem(string name)
+    {
+        return name.Contains("Maternity", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMicroSalaryItem(string name)
+    {
+        return name.Contains("MicroSalary", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Micro Salary", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Micro_Salary", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBinarySalaryItem(string name)
+    {
+        return name.Contains("Binary Salary", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Binary_Salary", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Binary", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMicroLeaveItem(string name)
+    {
+        return name.Contains("Micro Leave", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Micro_Leave", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Weekend Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Weekend_Setup", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSalaryPaymentItem(string name)
+    {
+        return name.Contains("Salary Payment", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Salary_Payment", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Payment Process", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBuyerManualItem(string name)
+    {
+        return name.Contains("Buyer Manual", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Buyer_Manual", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSalarySetupItem(string name)
+    {
+        return name.Equals("Salary Setup", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Salary_Setup", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSalaryProcessItem(string name)
+    {
+        return name.Contains("Salary Process", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Salary_Process", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Salary", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsUploadFileItem(string name)
+    {
+        return name.Equals("Upload File", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Upload_File", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("File Upload", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("File_Upload", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Upload", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAttendanceDetailsItem(string name)
+    {
+        return name.Equals("Attendance Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Attendance_Details", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Attendance Register", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRawAttendanceDataItem(string name)
+    {
+        return name.Equals("Raw Attendance Data", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Attendance Detail", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Attendance_Detail", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMicroAttendanceItem(string name)
+    {
+        return name.Equals("Micro Attendance", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Micro_Attendance", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsUserManagementRoot(string name)

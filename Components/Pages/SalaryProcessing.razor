@@ -1,0 +1,1635 @@
+@page "/SalaryProcessing"
+@page "/SalaryProcessing/{TabName}"
+@page "/AdvanceDuesDeduction"
+@page "/HourPunishment"
+@page "/LeaveProcess"
+@page "/SalaryProcess"
+@page "/MicroSalary"
+@page "/MaternityLeaveProcess"
+@page "/BinarySalary"
+@page "/MicroLeave"
+@page "/SalaryPayment"
+@page "/BuyerManual"
+@page "/SalarySetup"
+@using System.Web
+@using System.Data
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject PayrollRepository PayrollRepository
+@inject MasterRepository MasterRepository
+@inject EmployeeRepository EmployeeRepository
+@inject SalaryRepository SalaryRepository
+@inject AdvantageRepository AdvantageRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@GetHeaderTitle() - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="control-entry-shell">
+        <section class="control-form-panel">
+            <div class="skeleton-shimmer" style="height:32px;width:240px;margin-bottom:12px;"></div>
+            <div class="skeleton-shimmer" style="height:18px;width:380px;margin-bottom:24px;"></div>
+            <div class="skeleton-shimmer" style="height:180px;border-radius:12px;margin-bottom:16px;"></div>
+        </section>
+        <section class="control-list-panel">
+            <div class="skeleton-shimmer" style="height:350px;border-radius:12px;"></div>
+        </section>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to access Salary Processing modules.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">PAYROLL & DISBURSEMENT OPERATIONS</p>
+            <h1>@GetHeaderTitle()</h1>
+            <p>@GetHeaderSubtitle()</p>
+        </div>
+    </section>
+
+    <!-- Floating Modern Toast Notifications -->
+    <div class="toast-notification-container">
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="toast-item toast-success">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Operation Successful</div>
+                    <div class="toast-text">@successMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => successMessage = null">&times;</button>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="toast-item toast-error">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Notice / Query Error</div>
+                    <div class="toast-text">@errorMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => errorMessage = null">&times;</button>
+            </div>
+        }
+    </div>
+
+    <!-- Universal Delete Consent Modal -->
+    @if (showConfirmModal)
+    {
+        <div class="modal-backdrop-overlay" @onclick="CancelDelete">
+            <div class="confirm-delete-modal" @onclick:stopPropagation>
+                <div class="confirm-modal-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3>Are you sure?</h3>
+                <p>Do you really want to delete <strong>@confirmItemTitle</strong> (@confirmItemType)? This action cannot be undone.</p>
+                <div class="confirm-modal-actions">
+                    <button type="button" class="btn-cancel-modal" @onclick="CancelDelete">No, Cancel</button>
+                    <button type="button" class="btn-confirm-delete" @onclick="ExecuteConfirmedDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ==================== 1. MAIN SALARY PROCESS / MICROSALARY / BUYER ==================== -->
+    @if (activeTab == "salary" || activeTab == "microsalary" || activeTab == "buyer")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>@(activeTab == "microsalary" ? "MicroSalary Processing" : activeTab == "buyer" ? "Buyer Manual Salary" : "Monthly Salary Processing")</h2>
+                    <p>Calculate regular salary, attendance, OT, allowances, night shifts, and deductions.</p>
+                </div>
+                <form @onsubmit="ProcessMonthlySalary" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Salary Month / Year <strong class="req-star">*</strong></span>
+                            <input type="month" value="@filter.SalaryMonth.ToString("yyyy-MM")" @onchange="OnSalaryMonthChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Business Unit</span>
+                            <select @bind="filter.UnitId" class="company-form-input">
+                                <option value="">-- All Units --</option>
+                                @foreach (var u in units) { <option value="@u.UnitId">@u.UnitName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Department</span>
+                            <select @bind="filter.DepartmentId" class="company-form-input">
+                                <option value="">-- All Departments --</option>
+                                @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Section</span>
+                            <select @bind="filter.SectionId" class="company-form-input">
+                                <option value="">-- All Sections --</option>
+                                @foreach (var s in sections) { <option value="@s.SectionId">@s.SectionName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Category</span>
+                            <select @bind="filter.CategoryId" class="company-form-input">
+                                <option value="">-- All Categories --</option>
+                                @foreach (var c in categories) { <option value="@c.CategoryId">@c.CategoryName</option> }
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code</span>
+                            <input @bind="filter.EmpCode" placeholder="Specific Code" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadSavedSalaries">Load Saved Salary</button>
+                        <button type="submit" class="btn-primary-action">
+                            <span>Calculate Monthly Salary</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Salary Sheet (@salaries.Count Employees)</h2>
+                        <p>Total Net Payable: <strong>৳ @salaries.Sum(s => s.NetPayable).ToString("N2")</strong> | Bank: ৳ @salaries.Sum(s => s.BankPayable).ToString("N2") | Cash: ৳ @salaries.Sum(s => s.NetCashPayable).ToString("N2")</p>
+                    </div>
+                    @if (salaries.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="SaveMonthlySalaries">Save All Salaries</button>
+                            <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Salary Sheet Batch", filter.SalaryMonth.ToString("MMMM yyyy"), DeleteSalaries)'>Clear Month</button>
+                        </div>
+                    }
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" @onchange="ToggleSelectAllSalaries" checked="@(salaries.Count > 0 && salaries.All(s => s.IsSelected))" /></th>
+                                <th>Emp Code</th>
+                                <th>Name / Desig</th>
+                                <th style="text-align:right;">Gross</th>
+                                <th style="text-align:center;">P/A/L/H</th>
+                                <th style="text-align:right;">Earning</th>
+                                <th style="text-align:right;">OT Amt</th>
+                                <th style="text-align:right;">Adv/Deduct</th>
+                                <th style="text-align:right;">Net Payable</th>
+                                <th>Mode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in salaries)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" @bind="s.IsSelected" /></td>
+                                    <td><strong>@s.EmpCode</strong></td>
+                                    <td>@s.EmpName<div class="badge-sub">@s.DesignationName</div></td>
+                                    <td style="text-align:right;">৳ @s.Gross.ToString("N0")</td>
+                                    <td style="text-align:center;"><span class="type-pill">@s.PresentDays/@s.AbsentDays/@s.LeaveDays/@(s.HolidayDays + s.WeekendDays)</span></td>
+                                    <td style="text-align:right;">৳ @s.EarningSalary.ToString("N0")</td>
+                                    <td style="text-align:right;">৳ @s.OtAmount.ToString("N0")<small class="badge-sub">@s.OverTimeHours h</small></td>
+                                    <td style="text-align:right;color:#e11d48;">-৳ @s.TotalDeduction.ToString("N0")</td>
+                                    <td style="text-align:right;"><strong style="color:#16a34a;">৳ @s.NetPayable.ToString("N0")</strong></td>
+                                    <td><span class="@(s.AccType == "Bank" ? "admin-badge" : "type-pill")">@s.AccType</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== BINARY REPORT & QUERY AUDITOR ==================== -->
+    @if (activeTab == "binary")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Binary SQL Query Console</h2>
+                    <p>Enter and execute custom Oracle SQL queries for compliance audits, custom dataset generation, and verification.</p>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <span style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:6px;">QUICK QUERY TEMPLATES:</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        <button type="button" class="btn-secondary-action" style="padding:4px 10px;font-size:12px;" @onclick="() => LoadBinaryTemplate(1)">Employees</button>
+                        <button type="button" class="btn-secondary-action" style="padding:4px 10px;font-size:12px;" @onclick="() => LoadBinaryTemplate(2)">Salary Sheet</button>
+                        <button type="button" class="btn-secondary-action" style="padding:4px 10px;font-size:12px;" @onclick="() => LoadBinaryTemplate(3)">Attendance</button>
+                        <button type="button" class="btn-secondary-action" style="padding:4px 10px;font-size:12px;" @onclick="() => LoadBinaryTemplate(4)">Advance/Dues</button>
+                        <button type="button" class="btn-secondary-action" style="padding:4px 10px;font-size:12px;" @onclick="() => LoadBinaryTemplate(5)">Leave Log</button>
+                    </div>
+                </div>
+
+                <form @onsubmit="ExecuteBinaryQuery" @onsubmit:preventDefault>
+                    <div class="company-form-group">
+                        <span class="company-form-label" style="display:flex;justify-content:space-between;">
+                            <span>SQL Query Statement <strong class="req-star">*</strong></span>
+                            <small style="color:#64748b;">(Oracle SQL syntax)</small>
+                        </span>
+                        <textarea @bind="binarySqlQuery" class="company-form-input" style="font-family:Consolas, 'Fira Code', monospace;font-size:13px;background:#0f172a;color:#38bdf8;border-color:#334155;line-height:1.6;padding:14px;border-radius:10px;height:220px;min-height:180px;resize:vertical;" placeholder="SELECT * FROM ..."></textarea>
+                    </div>
+                    <div class="control-form-actions" style="margin-top:12px;gap:8px;">
+                        <button type="button" class="btn-secondary-action" @onclick="ClearBinaryQuery">Clear</button>
+                        <button type="button" class="btn-secondary-action" @onclick="CheckBinaryQuerySyntax">Check Syntax</button>
+                        @if (binaryDataTable != null && binaryDataTable.Rows.Count > 0)
+                        {
+                            <button type="button" class="btn-secondary-action" style="background:#16a34a;color:#fff;border:none;" @onclick="ExportBinaryToCsv">Export to CSV / Excel</button>
+                        }
+                        <button type="submit" class="btn-primary-action" disabled="@isExecutingBinary">
+                            @if (isExecutingBinary)
+                            {
+                                <span>Executing...</span>
+                            }
+                            else
+                            {
+                                <span>Execute Query</span>
+                            }
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Query Results @(binaryDataTable != null ? $"({binaryDataTable.Rows.Count} Rows, {binaryDataTable.Columns.Count} Columns)" : "(0 Rows)")</h2>
+                        <p>Real-time dataset view returned from database execution.</p>
+                    </div>
+                    @if (binaryDataTable != null && binaryDataTable.Rows.Count > 0)
+                    {
+                        <div class="table-action-group">
+                            <button type="button" class="btn-primary-action" @onclick="ExportBinaryToCsv">Export Dataset</button>
+                        </div>
+                    }
+                </div>
+
+                @if (binaryDataTable != null && binaryDataTable.Rows.Count > 0)
+                {
+                    <div class="controls-table-container" style="max-height:550px;overflow:auto;">
+                        <table class="controls-data-table">
+                            <thead>
+                                <tr>
+                                    @foreach (DataColumn col in binaryDataTable.Columns)
+                                    {
+                                        <th style="white-space:nowrap;">@col.ColumnName</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (DataRow row in binaryDataTable.Rows)
+                                {
+                                    <tr>
+                                        @foreach (DataColumn col in binaryDataTable.Columns)
+                                        {
+                                            <td style="white-space:nowrap;"><small>@(row[col] == DBNull.Value ? "-" : row[col].ToString())</small></td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:48px 24px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:10px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;color:#94a3b8;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2 1.5 3 3.5 3h9c2 0 3.5-1 3.5-3V7c0-2-1.5-3-3.5-3h-9C5.5 4 4 5 4 7zm0 5h16M9 4v16"/></svg>
+                        <h4 style="margin:0 0 6px;color:#334155;">No Query Results Yet</h4>
+                        <p style="margin:0;font-size:13px;">Write or select an SQL query on the left console and click "Execute Query" to inspect results.</p>
+                    </div>
+                }
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 2. LEAVE PROCESS & ENTRY ==================== -->
+    @if (activeTab == "leave")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Leave Processing & Posting</h2>
+                    <p>Post employee Casual (CL), Sick (SL), Earn (EL), or Special leave and sync with attendance.</p>
+                </div>
+                <form @onsubmit="SaveLeaveEntry" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code <strong class="req-star">*</strong></span>
+                            <div style="display:flex;gap:8px;">
+                                <input @bind="leaveEmpCode" placeholder="Emp Code" required class="company-form-input" />
+                                <button type="button" class="btn-secondary-action" @onclick="SearchLeaveEmployee">Search</button>
+                            </div>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Name</span>
+                            <input value="@leaveItem.EmpName" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Leave Type <strong class="req-star">*</strong></span>
+                            <select @bind="leaveItem.LeaveType" required class="company-form-input">
+                                <option value="CL">Casual Leave (CL)</option>
+                                <option value="SL">Sick Leave (SL)</option>
+                                <option value="EL">Earn Leave (EL)</option>
+                                <option value="ML">Medical / Maternity Leave (ML)</option>
+                                <option value="LWP">Leave Without Pay (LWP)</option>
+                                <option value="SPL">Special Leave (SPL)</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">From Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@leaveItem.FromDate.ToString("yyyy-MM-dd")" @onchange="OnLeaveFromDateChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">To Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@leaveItem.ToDate.ToString("yyyy-MM-dd")" @onchange="OnLeaveToDateChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Grant Days <strong class="req-star">*</strong></span>
+                            <input type="number" @bind="leaveItem.GrantDays" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Remarks / Reason</span>
+                            <input @bind="leaveItem.Remarks" placeholder="e.g. Family Emergency" class="company-form-input" />
+                        </label>
+                    </div>
+
+                    @if (leaveItem.EmpId > 0)
+                    {
+                        <div style="display:flex;gap:12px;margin:14px 0;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                            <div style="flex:1;text-align:center;">
+                                <div style="font-size:11px;color:#64748b;font-weight:600;">CASUAL (CL)</div>
+                                <div style="font-size:15px;font-weight:700;color:#1e293b;">@leaveBalance.BalanceCl <small style="color:#64748b;font-weight:normal;">/ @leaveBalance.EntitledCl</small></div>
+                            </div>
+                            <div style="flex:1;text-align:center;border-left:1px solid #cbd5e1;border-right:1px solid #cbd5e1;">
+                                <div style="font-size:11px;color:#64748b;font-weight:600;">SICK (SL)</div>
+                                <div style="font-size:15px;font-weight:700;color:#1e293b;">@leaveBalance.BalanceSl <small style="color:#64748b;font-weight:normal;">/ @leaveBalance.EntitledSl</small></div>
+                            </div>
+                            <div style="flex:1;text-align:center;">
+                                <div style="font-size:11px;color:#64748b;font-weight:600;">EARN (EL)</div>
+                                <div style="font-size:15px;font-weight:700;color:#1e293b;">@leaveBalance.BalanceEl <small style="color:#64748b;font-weight:normal;">/ @leaveBalance.EntitledEl</small></div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Post & Save Leave</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Leave History Register (@leaveEntries.Count Records)</h2>
+                        <p>Total Granted Leave: <strong>@leaveEntries.Sum(l => l.GrantDays) Days</strong></p>
+                    </div>
+                    <div class="table-action-group">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadLeaveEntries">Refresh List</button>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name / Desig</th>
+                                <th>Department</th>
+                                <th>Type</th>
+                                <th style="text-align:center;">From Date</th>
+                                <th style="text-align:center;">To Date</th>
+                                <th style="text-align:center;">Days</th>
+                                <th>Remarks</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in leaveEntries)
+                            {
+                                <tr>
+                                    <td><strong>@l.EmpCode</strong></td>
+                                    <td>@l.EmpName<div class="badge-sub">@l.DesignationName</div></td>
+                                    <td>@l.DepartmentName</td>
+                                    <td><span class="admin-badge">@l.LeaveType</span></td>
+                                    <td style="text-align:center;"><small>@l.FromDate.ToString("dd-MMM-yyyy")</small></td>
+                                    <td style="text-align:center;"><small>@l.ToDate.ToString("dd-MMM-yyyy")</small></td>
+                                    <td style="text-align:center;"><span class="type-pill">@l.GrantDays d</span></td>
+                                    <td><small>@l.Remarks</small></td>
+                                    <td style="text-align:center;">
+                                        <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Leave Record", l.EmpName, () => DeleteLeaveEntry(l.LeaveId))'>Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 3. ADVANCE-DUES-DEDUCTION ==================== -->
+    @if (activeTab == "advancedues")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Advance, Dues & Deduction Entry</h2>
+                    <p>Record employee monthly advance deductions, arrears/dues, or special loan installments.</p>
+                </div>
+                <form @onsubmit="SaveAdvanceDues" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code <strong class="req-star">*</strong></span>
+                            <div style="display:flex;gap:8px;">
+                                <input @bind="addEmpCode" placeholder="Emp Code" required class="company-form-input" />
+                                <button type="button" class="btn-secondary-action" @onclick="SearchAddEmployee">Search</button>
+                            </div>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Name</span>
+                            <input value="@addItem.EmpName" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Entry Type <strong class="req-star">*</strong></span>
+                            <select @bind="addItem.AddType" required class="company-form-input">
+                                <option value="Advance">Advance Salary</option>
+                                <option value="Dues">Salary Dues / Arrear</option>
+                                <option value="Deduction">Other Deduction / Loan</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Amount (BDT) <strong class="req-star">*</strong></span>
+                            <input type="number" @bind="addItem.AddAmount" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Effective Month <strong class="req-star">*</strong></span>
+                            <input type="month" value="@addItem.MonthYear.ToString("yyyy-MM")" @onchange="OnAddMonthChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Remarks</span>
+                            <input @bind="addItem.Remarks" placeholder="e.g. Festival Advance Adjustment" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Save Entry</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Monthly Adjustments Register (@advanceDuesList.Count)</h2>
+                        <p>Total Advance/Dues: <strong>৳ @advanceDuesList.Sum(a => a.AddAmount).ToString("N2")</strong></p>
+                    </div>
+                    <div class="table-action-group">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadAdvanceDues">Refresh List</button>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name / Desig</th>
+                                <th>Department</th>
+                                <th>Type</th>
+                                <th style="text-align:right;">Amount</th>
+                                <th style="text-align:center;">Month</th>
+                                <th>Remarks</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ad in advanceDuesList)
+                            {
+                                <tr>
+                                    <td><strong>@ad.EmpCode</strong></td>
+                                    <td>@ad.EmpName<div class="badge-sub">@ad.DesignationName</div></td>
+                                    <td>@ad.DepartmentName</td>
+                                    <td><span class="@(ad.AddType == "Dues" ? "admin-badge" : "type-pill")">@ad.AddType</span></td>
+                                    <td style="text-align:right;"><strong>৳ @ad.AddAmount.ToString("N0")</strong></td>
+                                    <td style="text-align:center;"><small>@ad.MonthYear.ToString("MMM-yyyy")</small></td>
+                                    <td><small>@ad.Remarks</small></td>
+                                    <td style="text-align:center;">
+                                        <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Adjustment", ad.EmpName, () => DeleteAdvanceDues(ad.AddId))'>Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 3. HOUR PUNISHMENT ==================== -->
+    @if (activeTab == "punishment")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Hour Punishment / Deduction Entry</h2>
+                    <p>Post disciplinary deduction hours (e.g. Lunch out penalty, unauthorized absence).</p>
+                </div>
+                <form @onsubmit="SavePunishment" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code <strong class="req-star">*</strong></span>
+                            <div style="display:flex;gap:8px;">
+                                <input @bind="punishEmpCode" placeholder="Emp Code" required class="company-form-input" />
+                                <button type="button" class="btn-secondary-action" @onclick="SearchPunishEmployee">Search</button>
+                            </div>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Name</span>
+                            <input value="@punishItem.EmpName" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Deduction Hours <strong class="req-star">*</strong></span>
+                            <input type="number" step="0.5" @bind="punishItem.DedHours" required class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@punishItem.Dt.ToString("yyyy-MM-dd")" @onchange="OnPunishDateChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Reason / Remarks</span>
+                            <input @bind="punishItem.Remarks" placeholder="e.g. LUNCH OUT" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Save Punishment</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Punishment Records (@punishments.Count)</h2>
+                        <p>Total Deduction Hours: <strong>@punishments.Sum(p => p.DedHours) Hours</strong></p>
+                    </div>
+                    <div class="table-action-group">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadPunishments">Refresh</button>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th style="text-align:center;">Deduction Hours</th>
+                                <th style="text-align:center;">Date</th>
+                                <th>Reason</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in punishments)
+                            {
+                                <tr>
+                                    <td><strong>@p.EmpCode</strong></td>
+                                    <td>@p.EmpName<div class="badge-sub">@p.DesignationName</div></td>
+                                    <td>@p.DepartmentName</td>
+                                    <td style="text-align:center;"><span class="type-pill" style="color:#e11d48;">@p.DedHours h</span></td>
+                                    <td style="text-align:center;"><small>@p.Dt.ToString("dd-MMM-yyyy")</small></td>
+                                    <td>@p.Remarks</td>
+                                    <td style="text-align:center;">
+                                        <button type="button" class="action-btn btn-delete-ctrl" @onclick='() => PromptDelete("Punishment Record", p.EmpName, () => DeletePunishment(p.DedHourId))'>Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 4. MATERNITY LEAVE PROCESS ==================== -->
+    @if (activeTab == "maternity")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Maternity Leave & Benefit Processing</h2>
+                    <p>Enroll employee in 16-week maternity benefit, calculate first & second installments.</p>
+                </div>
+                <form @onsubmit="SaveMaternity" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code <strong class="req-star">*</strong></span>
+                            <div style="display:flex;gap:8px;">
+                                <input @bind="maternityEmpCode" placeholder="Emp Code" required class="company-form-input" />
+                                <button type="button" class="btn-secondary-action" @onclick="SearchMaternityEmployee">Search</button>
+                            </div>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Name</span>
+                            <input value="@maternityItem.EmpName" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Current Gross</span>
+                            <input value="৳ @maternityItem.Gross.ToString("N0")" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Leave From Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@maternityItem.FromDate.ToString("yyyy-MM-dd")" @onchange="OnMaternityFromDateChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Leave To Date</span>
+                            <input type="date" value="@maternityItem.ToDate.ToString("yyyy-MM-dd")" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Total Benefit Payable <strong class="req-star">*</strong></span>
+                            <input type="number" @bind="maternityItem.TotalPayable" required class="company-form-input" @bind:after="OnMaternityPayableChanged" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">1st Installment (50%)</span>
+                            <input type="number" @bind="maternityItem.FirstPayment" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">2nd Installment (50%)</span>
+                            <input type="number" @bind="maternityItem.SecondPayment" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Confirm Maternity Enrollment</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Maternity Cases Roster (@maternities.Count)</h2>
+                        <p>Total Maternity Benefits: <strong>৳ @maternities.Sum(m => m.TotalPayable).ToString("N2")</strong></p>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name / Desig</th>
+                                <th>Department</th>
+                                <th style="text-align:center;">Leave Period</th>
+                                <th style="text-align:right;">Total Benefit</th>
+                                <th style="text-align:right;">1st Payment</th>
+                                <th style="text-align:right;">2nd Payment</th>
+                                <th style="text-align:center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in maternities)
+                            {
+                                <tr>
+                                    <td><strong>@m.EmpCode</strong></td>
+                                    <td>@m.EmpName<div class="badge-sub">@m.DesignationName</div></td>
+                                    <td>@m.DepartmentName</td>
+                                    <td style="text-align:center;"><small>@m.FromDate.ToString("dd-MMM-yy") to @m.ToDate.ToString("dd-MMM-yy")</small></td>
+                                    <td style="text-align:right;"><strong>৳ @m.TotalPayable.ToString("N0")</strong></td>
+                                    <td style="text-align:right;">৳ @m.FirstPayment.ToString("N0")</td>
+                                    <td style="text-align:right;">৳ @m.SecondPayment.ToString("N0")</td>
+                                    <td style="text-align:center;"><span class="admin-badge">@m.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <!-- ==================== 5. MICRO LEAVE / WEEKEND ==================== -->
+    @if (activeTab == "microleave")
+    {
+        <div class="control-entry-shell">
+            <section class="control-form-panel">
+                <div class="create-user-title">
+                    <h2>Special Weekend & Micro Leave Setup</h2>
+                    <p>Assign custom employee rest days, special shifts, and flexible micro leave schedules.</p>
+                </div>
+                <form @onsubmit="SaveMicroLeave" @onsubmit:preventDefault>
+                    <div class="master-form-grid">
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Code <strong class="req-star">*</strong></span>
+                            <div style="display:flex;gap:8px;">
+                                <input @bind="microEmpCode" placeholder="Emp Code" required class="company-form-input" />
+                                <button type="button" class="btn-secondary-action" @onclick="SearchMicroEmployee">Search</button>
+                            </div>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Employee Name</span>
+                            <input value="@microItem.EmpName" disabled class="company-form-input" style="background:#f1f5f9;" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Rest / Weekend Day</span>
+                            <select @bind="microItem.WeekendType" class="company-form-input">
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
+                                <option value="Sunday">Sunday</option>
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                            </select>
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">From Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@microItem.FromDate.ToString("yyyy-MM-dd")" @onchange="OnMicroFromDateChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">To Date <strong class="req-star">*</strong></span>
+                            <input type="date" value="@microItem.ToDate.ToString("yyyy-MM-dd")" @onchange="OnMicroToDateChanged" class="company-form-input" />
+                        </label>
+                        <label class="company-form-group">
+                            <span class="company-form-label">Remarks</span>
+                            <input @bind="microItem.Remarks" placeholder="e.g. Special weekend roster" class="company-form-input" />
+                        </label>
+                    </div>
+                    <div class="control-form-actions">
+                        <button type="submit" class="btn-primary-action">
+                            <span>Save Weekend Setup</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="control-list-panel">
+                <div class="control-list-header">
+                    <div>
+                        <h2>Custom Weekend Schedules (@microLeaves.Count)</h2>
+                    </div>
+                    <div class="table-action-group">
+                        <button type="button" class="btn-secondary-action" @onclick="LoadMicroLeaves">Refresh List</button>
+                    </div>
+                </div>
+                <div class="controls-table-container">
+                    <table class="controls-data-table">
+                        <thead>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Name / Desig</th>
+                                <th>Department</th>
+                                <th>Weekend Day</th>
+                                <th style="text-align:center;">Date Range</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ml in microLeaves)
+                            {
+                                <tr>
+                                    <td><strong>@ml.EmpCode</strong></td>
+                                    <td>@ml.EmpName<div class="badge-sub">@ml.DesignationName</div></td>
+                                    <td>@ml.DepartmentName</td>
+                                    <td><span class="admin-badge">@ml.WeekendType</span></td>
+                                    <td style="text-align:center;"><small>@ml.FromDate.ToString("dd-MMM") to @ml.ToDate.ToString("dd-MMM-yy")</small></td>
+                                    <td>@ml.Remarks</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? TabName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? QueryTab { get; set; }
+
+    private bool loaded;
+    private bool hasAccess;
+    private int currentUserId;
+    private string currentUserName = "User";
+    private bool currentUserIsAdmin;
+
+    private string activeTab = "salary";
+
+    // Master Data
+    private SalaryFilter filter = new();
+    private List<UnitItem> units = [];
+    private List<DepartmentItem> departments = [];
+    private List<SectionItem> sections = [];
+    private List<DesignationItem> designations = [];
+    private List<CategoryItem> categories = [];
+
+    // Module Data
+    private List<SalaryProcessItem> salaries = [];
+    private List<AdvanceDuesDeductionItem> advanceDuesList = [];
+    private string addEmpCode = "";
+    private AdvanceDuesDeductionItem addItem = new();
+
+    private List<HourPunishmentItem> punishments = [];
+    private string punishEmpCode = "";
+    private HourPunishmentItem punishItem = new();
+
+    private List<MaternityLeaveItem> maternities = [];
+    private string maternityEmpCode = "";
+    private MaternityLeaveItem maternityItem = new();
+
+    private List<MicroLeaveItem> microLeaves = [];
+    private string microEmpCode = "";
+    private MicroLeaveItem microItem = new();
+
+    private List<LeaveEntryItem> leaveEntries = [];
+    private string leaveEmpCode = "";
+    private LeaveEntryItem leaveItem = new();
+    private LeaveBalanceInfo leaveBalance = new();
+
+    // Binary Dynamic SQL Runner State
+    private string binarySqlQuery = "SELECT EMP_ID, EMP_CODE, EMP_NAME, GROSS, BASIC, EMP_STATUS FROM EMP_OFFICIAL WHERE ROWNUM <= 50";
+    private DataTable? binaryDataTable;
+    private bool isExecutingBinary;
+
+    // Feedback & Auto-Dismiss Toast System (5 Seconds)
+    private string? _successMessage;
+    private string? successMessage
+    {
+        get => _successMessage;
+        set
+        {
+            _successMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _errorMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private string? _errorMessage;
+    private string? errorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            _errorMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _successMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private CancellationTokenSource? toastCts;
+    private void ScheduleToastDismiss()
+    {
+        toastCts?.Cancel();
+        toastCts = new CancellationTokenSource();
+        var token = toastCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(5000, token);
+                if (!token.IsCancellationRequested)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        _successMessage = null;
+                        _errorMessage = null;
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch (TaskCanceledException) { }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
+    private bool showConfirmModal;
+    private string confirmItemTitle = "";
+    private string confirmItemType = "";
+    private Func<Task>? pendingDeleteAction;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out currentUserId))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        currentUserName = session?.GetString("UserName") ?? "User";
+        currentUserIsAdmin = session?.GetString("IsAdmin") == "1";
+        hasAccess = true;
+
+        units = await MasterRepository.GetUnitsAsync();
+        departments = await MasterRepository.GetDepartmentsAsync();
+        sections = await MasterRepository.GetSectionsAsync();
+        designations = await MasterRepository.GetDesignationsAsync();
+        categories = await MasterRepository.GetCategoriesAsync();
+
+        ResolveActiveTab();
+        loaded = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (loaded)
+        {
+            ResolveActiveTab();
+        }
+    }
+
+    private void ResolveActiveTab()
+    {
+        var uri = Navigation.Uri.ToLowerInvariant();
+        var tab = QueryTab ?? TabName;
+
+        if (!string.IsNullOrWhiteSpace(tab))
+        {
+            var t = tab.ToLowerInvariant();
+            if (t.Contains("leave") && !t.Contains("maternity") && !t.Contains("microleave")) activeTab = "leave";
+            else if (t.Contains("dues") || t.Contains("advance-dues")) activeTab = "advancedues";
+            else if (t.Contains("punish")) activeTab = "punishment";
+            else if (t.Contains("maternity")) activeTab = "maternity";
+            else if (t.Contains("microleave") || t.Contains("weekend")) activeTab = "microleave";
+            else if (t.Contains("microsalary")) activeTab = "microsalary";
+            else if (t.Contains("binary")) activeTab = "binary";
+            else if (t.Contains("buyer")) activeTab = "buyer";
+            else activeTab = "salary";
+        }
+        else if (uri.Contains("/leaveprocess")) activeTab = "leave";
+        else if (uri.Contains("/advanceduesdeduction")) activeTab = "advancedues";
+        else if (uri.Contains("/hourpunishment")) activeTab = "punishment";
+        else if (uri.Contains("/maternityleaveprocess")) activeTab = "maternity";
+        else if (uri.Contains("/microleave")) activeTab = "microleave";
+        else if (uri.Contains("/microsalary")) activeTab = "microsalary";
+        else if (uri.Contains("/binarysalary")) activeTab = "binary";
+        else if (uri.Contains("/buyermanual")) activeTab = "buyer";
+        else activeTab = "salary";
+    }
+
+    // ==========================================
+    // 1. SALARY PROCESS METHODS
+    // ==========================================
+    private void OnSalaryMonthChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString() + "-01", out var dt))
+        {
+            filter.SalaryMonth = dt;
+        }
+    }
+
+    private async Task ProcessMonthlySalary()
+    {
+        try
+        {
+            salaries = await SalaryRepository.CalculateMonthlySalaryAsync(filter);
+            successMessage = $"Successfully computed monthly salary for {salaries.Count} employees.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadSavedSalaries()
+    {
+        try
+        {
+            salaries = await SalaryRepository.GetSavedSalariesAsync(filter);
+            successMessage = $"Loaded {salaries.Count} saved salary records from database.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void ToggleSelectAllSalaries(ChangeEventArgs e)
+    {
+        var chk = (bool)(e.Value ?? false);
+        foreach (var s in salaries) s.IsSelected = chk;
+    }
+
+    private async Task SaveMonthlySalaries()
+    {
+        try
+        {
+            var selected = salaries.Where(s => s.IsSelected).ToList();
+            await SalaryRepository.SaveMonthlySalaryAsync(selected);
+            successMessage = $"Saved {selected.Count} salary records to database successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteSalaries()
+    {
+        try
+        {
+            await SalaryRepository.DeleteMonthlySalaryAsync(filter.SalaryMonth);
+            salaries.Clear();
+            successMessage = "Salary batch cleared successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 2. ADVANCE DUES METHODS
+    // ==========================================
+    private void OnAddMonthChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString() + "-01", out var dt))
+        {
+            addItem.MonthYear = dt;
+        }
+    }
+
+    private void OnPunishDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            punishItem.Dt = dt;
+        }
+    }
+
+    private void OnMicroFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            microItem.FromDate = dt;
+        }
+    }
+
+    private void OnMicroToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            microItem.ToDate = dt;
+        }
+    }
+
+    private async Task SearchAddEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(addEmpCode)) return;
+        try
+        {
+            var empList = await EmployeeRepository.GetEmployeesAsync(addEmpCode.Trim());
+            var empSummary = empList.FirstOrDefault(e => e.EmployeeCode.Equals(addEmpCode.Trim(), StringComparison.OrdinalIgnoreCase)) ?? empList.FirstOrDefault();
+            if (empSummary != null)
+            {
+                var emp = await EmployeeRepository.GetEmployeeAsync(empSummary.EmployeeId);
+                if (emp != null)
+                {
+                    addItem.EmpId = emp.EmployeeId;
+                    addItem.EmpCode = emp.EmployeeCode;
+                    addItem.EmpName = emp.EmployeeName;
+                    successMessage = $"Found employee: {emp.EmployeeName}.";
+                    errorMessage = null;
+                    return;
+                }
+            }
+            errorMessage = $"Employee '{addEmpCode}' not found.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadAdvanceDues()
+    {
+        try
+        {
+            advanceDuesList = await SalaryRepository.GetAdvanceDuesDeductionsAsync(addItem.MonthYear);
+            successMessage = $"Loaded {advanceDuesList.Count} adjustment records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task SaveAdvanceDues()
+    {
+        if (addItem.EmpId == 0)
+        {
+            errorMessage = "Please search and select an employee first.";
+            return;
+        }
+        try
+        {
+            await SalaryRepository.SaveAdvanceDuesDeductionAsync(addItem);
+            successMessage = $"{addItem.AddType} entry of ৳ {addItem.AddAmount:N0} saved for {addItem.EmpName}.";
+            await LoadAdvanceDues();
+            addItem = new AdvanceDuesDeductionItem { MonthYear = addItem.MonthYear };
+            addEmpCode = "";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteAdvanceDues(int id)
+    {
+        try
+        {
+            await SalaryRepository.DeleteAdvanceDuesDeductionAsync(id);
+            await LoadAdvanceDues();
+            successMessage = "Adjustment record deleted successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 3. HOUR PUNISHMENT METHODS
+    // ==========================================
+    private async Task SearchPunishEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(punishEmpCode)) return;
+        try
+        {
+            var empList = await EmployeeRepository.GetEmployeesAsync(punishEmpCode.Trim());
+            var empSummary = empList.FirstOrDefault(e => e.EmployeeCode.Equals(punishEmpCode.Trim(), StringComparison.OrdinalIgnoreCase)) ?? empList.FirstOrDefault();
+            if (empSummary != null)
+            {
+                var emp = await EmployeeRepository.GetEmployeeAsync(empSummary.EmployeeId);
+                if (emp != null)
+                {
+                    punishItem.EmpId = emp.EmployeeId;
+                    punishItem.EmpCode = emp.EmployeeCode;
+                    punishItem.EmpName = emp.EmployeeName;
+                    successMessage = $"Found employee: {emp.EmployeeName}.";
+                    errorMessage = null;
+                    return;
+                }
+            }
+            errorMessage = $"Employee '{punishEmpCode}' not found.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadPunishments()
+    {
+        try
+        {
+            punishments = await SalaryRepository.GetHourPunishmentsAsync(punishItem.Dt);
+            successMessage = $"Loaded {punishments.Count} punishment records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task SavePunishment()
+    {
+        if (punishItem.EmpId == 0)
+        {
+            errorMessage = "Please search and select an employee first.";
+            return;
+        }
+        try
+        {
+            await SalaryRepository.SaveHourPunishmentAsync(punishItem);
+            successMessage = $"Punishment of {punishItem.DedHours} hours recorded for {punishItem.EmpName}.";
+            await LoadPunishments();
+            punishItem = new HourPunishmentItem { Dt = punishItem.Dt };
+            punishEmpCode = "";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeletePunishment(int id)
+    {
+        try
+        {
+            await SalaryRepository.DeleteHourPunishmentAsync(id);
+            await LoadPunishments();
+            successMessage = "Punishment record deleted successfully.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 4. MATERNITY METHODS
+    // ==========================================
+    private async Task SearchMaternityEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(maternityEmpCode)) return;
+        try
+        {
+            var empList = await EmployeeRepository.GetEmployeesAsync(maternityEmpCode.Trim());
+            var empSummary = empList.FirstOrDefault(e => e.EmployeeCode.Equals(maternityEmpCode.Trim(), StringComparison.OrdinalIgnoreCase)) ?? empList.FirstOrDefault();
+            if (empSummary != null)
+            {
+                var emp = await EmployeeRepository.GetEmployeeAsync(empSummary.EmployeeId);
+                if (emp != null)
+                {
+                    maternityItem.EmpId = emp.EmployeeId;
+                    maternityItem.EmpCode = emp.EmployeeCode;
+                    maternityItem.EmpName = emp.EmployeeName;
+                    maternityItem.Gross = emp.Gross;
+                    maternityItem.Basic = emp.Gross * 0.6m;
+                    // Standard 16 weeks ~ 3.7 months gross
+                    maternityItem.TotalPayable = Math.Round(emp.Gross * 3.7m, 0);
+                    maternityItem.FirstPayment = Math.Round(maternityItem.TotalPayable * 0.5m, 0);
+                    maternityItem.SecondPayment = maternityItem.TotalPayable - maternityItem.FirstPayment;
+                    successMessage = $"Loaded official details for {emp.EmployeeName}.";
+                    errorMessage = null;
+                    return;
+                }
+            }
+            errorMessage = $"Employee '{maternityEmpCode}' not found.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void OnMaternityFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            maternityItem.FromDate = dt;
+            maternityItem.ToDate = dt.AddDays(112);
+        }
+    }
+
+    private void OnMaternityPayableChanged()
+    {
+        maternityItem.FirstPayment = Math.Round(maternityItem.TotalPayable * 0.5m, 0);
+        maternityItem.SecondPayment = maternityItem.TotalPayable - maternityItem.FirstPayment;
+    }
+
+    private async Task SaveMaternity()
+    {
+        if (maternityItem.EmpId == 0)
+        {
+            errorMessage = "Please search and select an employee first.";
+            return;
+        }
+        try
+        {
+            await SalaryRepository.SaveMaternityLeaveAsync(maternityItem);
+            successMessage = $"Maternity benefit of ৳ {maternityItem.TotalPayable:N0} confirmed for {maternityItem.EmpName}.";
+            maternities = await SalaryRepository.GetMaternityLeavesAsync();
+            maternityItem = new MaternityLeaveItem();
+            maternityEmpCode = "";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // 5. MICRO LEAVE / WEEKEND METHODS
+    // ==========================================
+    private async Task SearchMicroEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(microEmpCode)) return;
+        try
+        {
+            var empList = await EmployeeRepository.GetEmployeesAsync(microEmpCode.Trim());
+            var empSummary = empList.FirstOrDefault(e => e.EmployeeCode.Equals(microEmpCode.Trim(), StringComparison.OrdinalIgnoreCase)) ?? empList.FirstOrDefault();
+            if (empSummary != null)
+            {
+                var emp = await EmployeeRepository.GetEmployeeAsync(empSummary.EmployeeId);
+                if (emp != null)
+                {
+                    microItem.EmpId = emp.EmployeeId;
+                    microItem.EmpCode = emp.EmployeeCode;
+                    microItem.EmpName = emp.EmployeeName;
+                    successMessage = $"Found employee: {emp.EmployeeName}.";
+                    errorMessage = null;
+                    return;
+                }
+            }
+            errorMessage = $"Employee '{microEmpCode}' not found.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task LoadMicroLeaves()
+    {
+        try
+        {
+            microLeaves = await SalaryRepository.GetMicroLeavesAsync();
+            successMessage = $"Loaded {microLeaves.Count} custom weekend schedules.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task SaveMicroLeave()
+    {
+        if (microItem.EmpId == 0)
+        {
+            errorMessage = "Please search and select an employee first.";
+            return;
+        }
+        try
+        {
+            await SalaryRepository.SaveMicroLeaveAsync(microItem);
+            successMessage = $"Weekend ({microItem.WeekendType}) setup saved for {microItem.EmpName}.";
+            await LoadMicroLeaves();
+            microItem = new MicroLeaveItem();
+            microEmpCode = "";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // CONFIRMATION MODAL & HEADERS
+    // ==========================================
+    private void PromptDelete(string itemType, string itemName, Func<Task> onConfirm)
+    {
+        confirmItemType = itemType;
+        confirmItemTitle = itemName;
+        pendingDeleteAction = onConfirm;
+        showConfirmModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        showConfirmModal = false;
+        pendingDeleteAction = null;
+    }
+
+    private async Task ExecuteConfirmedDelete()
+    {
+        if (pendingDeleteAction != null)
+        {
+            var action = pendingDeleteAction;
+            showConfirmModal = false;
+            pendingDeleteAction = null;
+            await action();
+        }
+    }
+
+    // ==========================================
+    // LEAVE PROCESS METHODS
+    // ==========================================
+    private async Task SearchLeaveEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(leaveEmpCode)) return;
+        try
+        {
+            var empList = await EmployeeRepository.GetEmployeesAsync(leaveEmpCode.Trim());
+            var empSummary = empList.FirstOrDefault(e => e.EmployeeCode.Equals(leaveEmpCode.Trim(), StringComparison.OrdinalIgnoreCase)) ?? empList.FirstOrDefault();
+            if (empSummary != null)
+            {
+                var emp = await EmployeeRepository.GetEmployeeAsync(empSummary.EmployeeId);
+                if (emp != null)
+                {
+                    leaveItem.EmpId = emp.EmployeeId;
+                    leaveItem.EmpCode = emp.EmployeeCode;
+                    leaveItem.EmpName = emp.EmployeeName;
+                    leaveBalance = await SalaryRepository.GetEmployeeLeaveBalanceAsync(emp.EmployeeId, DateTime.Today.Year);
+                    leaveEntries = await SalaryRepository.GetLeaveEntriesAsync(null, null, emp.EmployeeCode);
+                    successMessage = $"Found employee: {emp.EmployeeName}.";
+                    errorMessage = null;
+                    return;
+                }
+            }
+            errorMessage = $"Employee '{leaveEmpCode}' not found.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void OnLeaveFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            leaveItem.FromDate = dt;
+            if (leaveItem.ToDate < dt) leaveItem.ToDate = dt;
+            leaveItem.GrantDays = Math.Max(1, (int)(leaveItem.ToDate - leaveItem.FromDate).TotalDays + 1);
+        }
+    }
+
+    private void OnLeaveToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            leaveItem.ToDate = dt;
+            leaveItem.GrantDays = Math.Max(1, (int)(leaveItem.ToDate - leaveItem.FromDate).TotalDays + 1);
+        }
+    }
+
+    private async Task LoadLeaveEntries()
+    {
+        try
+        {
+            leaveEntries = await SalaryRepository.GetLeaveEntriesAsync(null, null, string.IsNullOrWhiteSpace(leaveEmpCode) ? null : leaveEmpCode);
+            successMessage = $"Loaded {leaveEntries.Count} leave records.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task SaveLeaveEntry()
+    {
+        if (leaveItem.EmpId == 0)
+        {
+            errorMessage = "Please search and select an employee first.";
+            return;
+        }
+        try
+        {
+            await SalaryRepository.SaveLeaveEntryAsync(leaveItem);
+            successMessage = $"Leave ({leaveItem.LeaveType}) of {leaveItem.GrantDays} days saved for {leaveItem.EmpName} and attendance synchronized.";
+            leaveBalance = await SalaryRepository.GetEmployeeLeaveBalanceAsync(leaveItem.EmpId, DateTime.Today.Year);
+            leaveEntries = await SalaryRepository.GetLeaveEntriesAsync(null, null, leaveItem.EmpCode);
+            leaveItem = new LeaveEntryItem { EmpId = leaveItem.EmpId, EmpCode = leaveItem.EmpCode, EmpName = leaveItem.EmpName };
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task DeleteLeaveEntry(int id)
+    {
+        try
+        {
+            await SalaryRepository.DeleteLeaveEntryAsync(id);
+            if (leaveItem.EmpId > 0)
+            {
+                leaveBalance = await SalaryRepository.GetEmployeeLeaveBalanceAsync(leaveItem.EmpId, DateTime.Today.Year);
+                leaveEntries = await SalaryRepository.GetLeaveEntriesAsync(null, null, leaveItem.EmpCode);
+            }
+            else
+            {
+                await LoadLeaveEntries();
+            }
+            successMessage = "Leave entry deleted and attendance status restored.";
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    // ==========================================
+    // BINARY DYNAMIC QUERY RUNNER METHODS
+    // ==========================================
+    private void LoadBinaryTemplate(int templateId)
+    {
+        binarySqlQuery = templateId switch
+        {
+            1 => "SELECT EMP_ID, EMP_CODE, EMP_NAME, GROSS, BASIC, EMP_STATUS FROM EMP_OFFICIAL WHERE ROWNUM <= 50",
+            2 => "SELECT EMP_CODE, EMP_NAME, GROSS, BASIC, NET_PAYABLE, SALARY_FOR FROM SALARY WHERE ROWNUM <= 50",
+            3 => "SELECT EMP_ID, ATTD_DATE, IN_TIME, OUT_TIME, STATUS, OVER_TIME FROM ATTENDANCE_DETAILS WHERE ROWNUM <= 50",
+            4 => "SELECT * FROM ADVANCE_DUES_DEDUCTION WHERE ROWNUM <= 50",
+            5 => "SELECT * FROM LEAVE WHERE ROWNUM <= 50",
+            _ => "SELECT * FROM EMP_OFFICIAL WHERE ROWNUM <= 50"
+        };
+    }
+
+    private void SetBinaryTemplate(string sql)
+    {
+        binarySqlQuery = sql;
+    }
+
+    private async Task ExecuteBinaryQuery()
+    {
+        if (string.IsNullOrWhiteSpace(binarySqlQuery))
+        {
+            errorMessage = "Please enter an SQL query to execute.";
+            return;
+        }
+
+        try
+        {
+            isExecutingBinary = true;
+            errorMessage = null;
+            successMessage = null;
+            binaryDataTable = await SalaryRepository.ExecuteBinaryQueryAsync(binarySqlQuery);
+            successMessage = $"Query executed successfully! Returned {binaryDataTable.Rows.Count} rows.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"SQL Execution Error: {ex.Message}";
+            binaryDataTable = null;
+        }
+        finally
+        {
+            isExecutingBinary = false;
+        }
+    }
+
+    private async Task CheckBinaryQuerySyntax()
+    {
+        if (string.IsNullOrWhiteSpace(binarySqlQuery))
+        {
+            errorMessage = "Please enter an SQL query to check.";
+            return;
+        }
+
+        try
+        {
+            isExecutingBinary = true;
+            errorMessage = null;
+            var cleanSql = binarySqlQuery.Trim().TrimEnd(';', '/', ' ', '\t', '\r', '\n').Trim();
+            var testSql = $"SELECT * FROM ({cleanSql}) WHERE ROWNUM <= 1";
+            await SalaryRepository.ExecuteBinaryQueryAsync(testSql);
+            successMessage = "Your SQL Query syntax is completely valid and ready to execute!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"SQL Syntax Error: {ex.Message}";
+        }
+        finally
+        {
+            isExecutingBinary = false;
+        }
+    }
+
+    private void ClearBinaryQuery()
+    {
+        binarySqlQuery = "";
+        binaryDataTable = null;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task ExportBinaryToCsv()
+    {
+        if (binaryDataTable == null || binaryDataTable.Rows.Count == 0)
+        {
+            errorMessage = "No data available to export. Please execute a query first.";
+            return;
+        }
+
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            var colNames = new List<string>();
+            foreach (DataColumn c in binaryDataTable.Columns)
+            {
+                colNames.Add("\"" + c.ColumnName.Replace("\"", "\"\"") + "\"");
+            }
+            sb.AppendLine(string.Join(",", colNames));
+
+            foreach (DataRow row in binaryDataTable.Rows)
+            {
+                var rowVals = new List<string>();
+                foreach (var item in row.ItemArray)
+                {
+                    rowVals.Add("\"" + (item?.ToString() ?? "").Replace("\"", "\"\"") + "\"");
+                }
+                sb.AppendLine(string.Join(",", rowVals));
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = "Binary_Report_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+            await JSRuntime.InvokeVoidAsync("eval", "const a = document.createElement('a'); a.href = 'data:text/csv;base64," + base64 + "'; a.download = '" + filename + "'; a.click();");
+            successMessage = "Exported " + binaryDataTable.Rows.Count + " records to " + filename + ".";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Export Failed: {ex.Message}";
+        }
+    }
+
+    private string GetHeaderTitle() => activeTab switch
+    {
+        "binary" => "Binary Report & Query Auditor",
+        "leave" => "Leave Process & Posting",
+        "advancedues" => "Advance-Dues-Deduction",
+        "punishment" => "Hour Punishment",
+        "maternity" => "Maternity Leave Process",
+        "microsalary" => "MicroSalary Processing",
+        "microleave" => "Micro Leave / Weekend Setup",
+        "payment" => "Salary Payment & Disbursement",
+        "buyer" => "Buyer Manual Salary",
+        "salarysetup" => "Salary Setup",
+        _ => "Monthly Salary Processing"
+    };
+
+    private string GetHeaderSubtitle() => activeTab switch
+    {
+        "binary" => "Execute custom compliance SQL queries, inspect raw attendance and payroll datasets, and export audit reports.",
+        "leave" => "Post employee Casual, Sick, Earn, and Special leaves with live balance tracking and attendance synchronization.",
+        "advancedues" => "Manage monthly salary advances, arrear dues, and loan deduction installments.",
+        "punishment" => "Record disciplinary hour deductions, lunch out penalties, and calculate salary impacts.",
+        "maternity" => "16-week maternity benefit calculation, installment disbursements, and status tracking.",
+        "microsalary" => "Micro attendance based salary processing with flexible shift calculations.",
+        "microleave" => "Configure employee custom weekend rosters and micro leave dates.",
+        "payment" => "Track salary disbursement status, bank transfer batches, and cash payments.",
+        "buyer" => "Buyer compliance manual salary sheet calculation and auditing.",
+        "salarysetup" => "Employee salary component ratios, tax setups, and bank/cash allocations.",
+        _ => "Compute monthly employee salary, working days, overtime, bonuses, deductions, and payouts."
+    };
+}

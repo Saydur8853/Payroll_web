@@ -137,10 +137,17 @@ public sealed class PayrollRepository
             var id = Convert.ToInt32(reader.GetValue(0));
             if (!isAdmin && !permittedIds.Contains(id.ToString())) continue;
 
+            var rawName = Convert.ToString(reader.GetValue(1)) ?? string.Empty;
+            if (rawName.Equals("Attendance Detail", StringComparison.OrdinalIgnoreCase) ||
+                rawName.Equals("Attendance_Detail", StringComparison.OrdinalIgnoreCase))
+            {
+                rawName = "Raw Attendance Data";
+            }
+
             items.Add(new NavigationItem
             {
                 Id = id,
-                Name = Convert.ToString(reader.GetValue(1)) ?? string.Empty,
+                Name = rawName,
                 ParentId = reader.IsDBNull(2) ? null : Convert.ToInt32(reader.GetValue(2))
             });
         }
@@ -183,10 +190,16 @@ public sealed class PayrollRepository
         {
             var parentIdVal = reader.IsDBNull(2) ? null : (int?)Convert.ToInt32(reader.GetValue(2));
             if (parentIdVal == 0) parentIdVal = null;
+            var rawName = Convert.ToString(reader.GetValue(1)) ?? string.Empty;
+            if (rawName.Equals("Attendance Detail", StringComparison.OrdinalIgnoreCase) ||
+                rawName.Equals("Attendance_Detail", StringComparison.OrdinalIgnoreCase))
+            {
+                rawName = "Raw Attendance Data";
+            }
             modules.Add(new NavigationItem
             {
                 Id = Convert.ToInt32(reader.GetValue(0)),
-                Name = Convert.ToString(reader.GetValue(1)) ?? string.Empty,
+                Name = rawName,
                 ParentId = parentIdVal
             });
         }

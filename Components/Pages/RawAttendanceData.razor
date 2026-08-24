@@ -1,0 +1,308 @@
+@page "/RawAttendanceData"
+@using System.Data
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject MasterRepository MasterRepository
+@inject AttendanceRepository AttendanceRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Raw Attendance Data - TG Payroll</PageTitle>
+
+@if (!loaded)
+{
+    <div class="control-entry-shell">
+        <section class="control-form-panel">
+            <div class="skeleton-shimmer" style="height:32px;width:240px;margin-bottom:12px;"></div>
+        </section>
+    </div>
+}
+else if (!hasAccess)
+{
+    <div class="database-error management-message">
+        Access Restricted: You do not have permission to access Attendance modules.
+    </div>
+}
+else
+{
+    <section class="management-heading">
+        <div>
+            <p class="eyebrow">TIME & ATTENDANCE MANAGEMENT</p>
+            <h1>Raw Attendance Data</h1>
+            <p>Inspect unprocessed device card punch streams, verify device timestamps, and audit biometric logs.</p>
+        </div>
+    </section>
+
+    <!-- Floating Modern Toast Notifications -->
+    <div class="toast-notification-container">
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="toast-item toast-success">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Operation Successful</div>
+                    <div class="toast-text">@successMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => successMessage = null">&times;</button>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="toast-item toast-error">
+                <div class="toast-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
+                </div>
+                <div class="toast-body">
+                    <div class="toast-title">Notice / Error</div>
+                    <div class="toast-text">@errorMessage</div>
+                </div>
+                <button type="button" class="toast-close-btn" @onclick="() => errorMessage = null">&times;</button>
+            </div>
+        }
+    </div>
+
+    <!-- Filter Console -->
+    <div class="control-entry-shell" style="margin-bottom:16px;">
+        <section class="control-form-panel">
+            <form @onsubmit="LoadRawData" @onsubmit:preventDefault>
+                <div class="master-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <label class="company-form-group">
+                        <span class="company-form-label">From Date <strong class="req-star">*</strong></span>
+                        <input type="date" value="@filter.FromDate.ToString("yyyy-MM-dd")" @onchange="OnFromDateChanged" class="company-form-input" />
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">To Date <strong class="req-star">*</strong></span>
+                        <input type="date" value="@filter.ToDate.ToString("yyyy-MM-dd")" @onchange="OnToDateChanged" class="company-form-input" />
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Department</span>
+                        <select @bind="filter.DepartmentId" class="company-form-input">
+                            <option value="">-- All Departments --</option>
+                            @foreach (var d in departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                        </select>
+                    </label>
+                    <label class="company-form-group">
+                        <span class="company-form-label">Employee Code</span>
+                        <input @bind="filter.EmpCode" placeholder="Specific Code" class="company-form-input" />
+                    </label>
+                </div>
+                <div class="control-form-actions" style="margin-top:14px;gap:8px;">
+                    <button type="button" class="btn-secondary-action" @onclick="ResetFilter">Reset</button>
+                    @if (rawList.Count > 0)
+                    {
+                        <button type="button" class="btn-secondary-action" style="background:#16a34a;color:#fff;border:none;" @onclick="ExportToCsv">Export to CSV</button>
+                    }
+                    <button type="submit" class="btn-primary-action" disabled="@isLoadingData">
+                        <span>@(isLoadingData ? "Loading..." : "Search & Filter")</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    @if (hasSearched)
+    {
+        <section class="control-list-panel">
+            <div class="control-list-header">
+                <div>
+                    <h2>Raw Device Punch Stream (@rawList.Count Logs)</h2>
+                    <p>Unprocessed card punch timestamps, machine devices, and manual vs biometric audit logs.</p>
+                </div>
+            </div>
+            <div class="controls-table-container" style="max-height:600px;overflow:auto;">
+                <table class="controls-data-table">
+                    <thead>
+                        <tr>
+                            <th>Emp Code</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Shift</th>
+                            <th style="text-align:center;">Date</th>
+                            <th style="text-align:center;">Raw Punch IN</th>
+                            <th style="text-align:center;">Raw Punch OUT</th>
+                            <th style="text-align:center;">Status</th>
+                            <th style="text-align:center;">OT</th>
+                            <th style="text-align:center;">Device / Machine</th>
+                            <th style="text-align:center;">Type</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in rawList)
+                        {
+                            <tr>
+                                <td><strong>@r.EmpCode</strong></td>
+                                <td>@r.EmpName</td>
+                                <td>@r.DepartmentName</td>
+                                <td><span class="type-pill">@r.ShiftName</span></td>
+                                <td style="text-align:center;"><small>@r.AttdDate.ToString("dd-MMM-yyyy")</small></td>
+                                <td style="text-align:center;"><span style="font-family:monospace;font-size:12px;color:#0369a1;">@(r.RawInTime ?? "--")</span></td>
+                                <td style="text-align:center;"><span style="font-family:monospace;font-size:12px;color:#0369a1;">@(r.RawOutTime ?? "--")</span></td>
+                                <td style="text-align:center;"><span class="type-pill">@r.Status</span></td>
+                                <td style="text-align:center;">@r.OverTime h</td>
+                                <td style="text-align:center;"><small class="badge-sub">@(string.IsNullOrWhiteSpace(r.MachineNo) ? "Main Bio" : r.MachineNo)</small></td>
+                                <td style="text-align:center;">
+                                    <span class="@(r.IsManual ? "admin-badge" : "type-pill")" style="@(r.IsManual ? "background:#fef3c7;color:#b45309;" : "")">
+                                        @(r.IsManual ? "Manual Edit" : "Biometric")
+                                    </span>
+                                </td>
+                                <td><small>@r.Remarks</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else
+    {
+        <div style="padding:48px 24px;text-align:center;color:#64748b;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;color:#94a3b8;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+            <h3 style="margin:0 0 6px;color:#334155;">Ready to Search Raw Device Punch Logs</h3>
+            <p style="margin:0;font-size:13px;">Select date range or department filter above and click <strong>Search & Filter</strong>.</p>
+        </div>
+    }
+}
+
+@code {
+    private bool loaded;
+    private bool hasAccess;
+    private bool hasSearched;
+    private bool isLoadingData;
+
+    private AttendanceFilter filter = new();
+    private List<DepartmentItem> departments = [];
+    private List<RawAttendanceItem> rawList = [];
+
+    // 5-Second Auto-Dismiss Toast
+    private string? _successMessage;
+    private string? successMessage
+    {
+        get => _successMessage;
+        set
+        {
+            _successMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _errorMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private string? _errorMessage;
+    private string? errorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            _errorMessage = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _successMessage = null;
+                ScheduleToastDismiss();
+            }
+        }
+    }
+
+    private CancellationTokenSource? toastCts;
+    private void ScheduleToastDismiss()
+    {
+        toastCts?.Cancel();
+        toastCts = new CancellationTokenSource();
+        var token = toastCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(5000, token);
+                if (!token.IsCancellationRequested)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        _successMessage = null;
+                        _errorMessage = null;
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch (TaskCanceledException) { }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        var userIdStr = session?.GetString("UserId");
+        if (!int.TryParse(userIdStr, out _))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        hasAccess = true;
+        departments = await MasterRepository.GetDepartmentsAsync();
+        loaded = true;
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt)) filter.FromDate = dt;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt)) filter.ToDate = dt;
+    }
+
+    private void ResetFilter()
+    {
+        filter = new AttendanceFilter();
+        hasSearched = false;
+        rawList.Clear();
+    }
+
+    private async Task LoadRawData()
+    {
+        isLoadingData = true;
+        try
+        {
+            rawList = await AttendanceRepository.GetRawAttendanceDataAsync(filter);
+            hasSearched = true;
+            successMessage = $"Found {rawList.Count} raw punch records.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Data Load Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("\"Emp Code\",\"Name\",\"Department\",\"Shift\",\"Date\",\"Raw In Time\",\"Raw Out Time\",\"Status\",\"OT\",\"Device\",\"Type\",\"Remarks\"");
+            foreach (var r in rawList)
+            {
+                sb.AppendLine($"\"{r.EmpCode}\",\"{r.EmpName}\",\"{r.DepartmentName}\",\"{r.ShiftName}\",\"{r.AttdDate:dd-MMM-yyyy}\",\"{r.RawInTime}\",\"{r.RawOutTime}\",\"{r.Status}\",\"{r.OverTime}\",\"{r.MachineNo}\",\"{(r.IsManual ? "Manual" : "Biometric")}\",\"{r.Remarks}\"");
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = $"Raw_Attendance_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("eval", "const a = document.createElement('a'); a.href = 'data:text/csv;base64," + base64 + "'; a.download = '" + filename + "'; a.click();");
+            successMessage = $"Exported {rawList.Count} records to {filename}.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Export Failed: {ex.Message}";
+        }
+    }
+}

@@ -119,18 +119,6 @@
                     <span>Import CSV</span>
                 </button>
 
-                <button type="button" class="emp-btn emp-btn-secondary" @onclick="ExportEmployeesToCsv" disabled="@isExporting" title="Export all employees to CSV">
-                    @if (isExporting)
-                    {
-                        <span class="emp-spinner-dot"></span>
-                        <span>Exporting...</span>
-                    }
-                    else
-                    {
-                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                        <span>Export CSV</span>
-                    }
-                </button>
 
                 @if (isEdit && !isUnlocked)
                 {
@@ -1334,7 +1322,6 @@
     private double unlockHintY;
     private int toastVersion;
 
-    private bool isExporting;
     private bool isImporting;
     private bool showImportModal;
     private string? selectedImportFileName;
@@ -1372,29 +1359,6 @@
         importResultSummary = null;
     }
 
-    private async Task ExportEmployeesToCsv()
-    {
-        isExporting = true;
-        try
-        {
-            var items = await EmployeeRepository.GetAllEmployeesForExportAsync();
-            var csv = EmployeeCsvHelper.BuildExportCsv(items);
-            var bytes = EmployeeCsvHelper.GetUtf8BomBytes(csv);
-            var base64 = Convert.ToBase64String(bytes);
-            var filename = $"Employee_Information_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-            await JS.InvokeVoidAsync("downloadFileFromBase64", filename, "text/csv;charset=utf-8;", base64);
-            ShowToast($"Exported {items.Count} employee records to CSV successfully.");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to export employees CSV");
-            ShowToast($"Export failed: {ex.Message}");
-        }
-        finally
-        {
-            isExporting = false;
-        }
-    }
 
     private async Task DownloadCsvTemplate()
     {

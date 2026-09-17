@@ -52,87 +52,8 @@
                 <span class="menu-text">@item.Name</span>
             </NavLink>
         }
-        else if (IsEmployeeStatusItem(item.Name))
-        {
-            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations?tab=status" Match="NavLinkMatch.Prefix" title="@item.Name">
-                @if (Level == 0)
-                {
-                    <span class="menu-icon-wrap">
-                        @GetIcon(item.Name)
-                    </span>
-                }
-                else
-                {
-                    <span class="menu-bullet-dot"></span>
-                }
-                <span class="menu-text">@item.Name</span>
-            </NavLink>
-        }
-        else if (IsEmployeeDetailsItem(item.Name))
-        {
-            <NavLink class="menu-item menu-link-activeable" href="/EmployeeDetails" Match="NavLinkMatch.Prefix" title="@item.Name">
-                @if (Level == 0)
-                {
-                    <span class="menu-icon-wrap">
-                        @GetIcon(item.Name)
-                    </span>
-                }
-                else
-                {
-                    <span class="menu-bullet-dot"></span>
-                }
-                <span class="menu-text">@item.Name</span>
-            </NavLink>
-        }
-        else if (IsSetPriorityItem(item.Name))
-        {
-            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations?tab=priority" Match="NavLinkMatch.Prefix" title="@item.Name">
-                @if (Level == 0)
-                {
-                    <span class="menu-icon-wrap">
-                        @GetIcon(item.Name)
-                    </span>
-                }
-                else
-                {
-                    <span class="menu-bullet-dot"></span>
-                }
-                <span class="menu-text">@item.Name</span>
-            </NavLink>
-        }
-        else if (IsContactInfoItem(item.Name))
-        {
-            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations?tab=contact" Match="NavLinkMatch.Prefix" title="@item.Name">
-                @if (Level == 0)
-                {
-                    <span class="menu-icon-wrap">
-                        @GetIcon(item.Name)
-                    </span>
-                }
-                else
-                {
-                    <span class="menu-bullet-dot"></span>
-                }
-                <span class="menu-text">@item.Name</span>
-            </NavLink>
-        }
-        else if (IsWorkforceOperationsItem(item.Name))
-        {
-            <NavLink class="menu-item menu-link-activeable" href="/EmployeeOperations" Match="NavLinkMatch.Prefix" title="@item.Name">
-                @if (Level == 0)
-                {
-                    <span class="menu-icon-wrap">
-                        @GetIcon(item.Name)
-                    </span>
-                }
-                else
-                {
-                    <span class="menu-bullet-dot"></span>
-                }
-                <span class="menu-text">@item.Name</span>
-            </NavLink>
-        }
-        else if (IsEmployeeItem(item.Name))
+
+        else if (IsEmployeeItem(item.Name, item.Id))
         {
             <NavLink class="menu-item menu-link-activeable" href="/EmployeeInformation" Match="NavLinkMatch.Prefix" title="@item.Name">
                 @if (Level == 0)
@@ -563,48 +484,7 @@
         get
         {
             if (Items is null) return [];
-            
-            var list = Items.ToList();
-            
-            // Clean up Employee Information sub-items ONLY at Level > 0 (inside the group)
-            if (Level > 0)
-            {
-                var hasEmployee = list.Any(i => IsEmployeeLeafItem(i.Name));
-                var hasOps = list.Any(i => IsEmployeeOpsLeafItem(i.Name));
-                
-                if (hasEmployee || hasOps)
-                {
-                    var cleanedList = new List<NavigationItem>();
-                    bool addedEmp = false;
-                    bool addedOps = false;
-                    
-                    foreach (var item in list)
-                    {
-                        if (IsEmployeeLeafItem(item.Name))
-                        {
-                            if (!addedEmp)
-                            {
-                                cleanedList.Add(new NavigationItem { Id = 13, Name = "Employee Profiles", ParentId = item.ParentId });
-                                addedEmp = true;
-                            }
-                        }
-                        else if (IsEmployeeOpsLeafItem(item.Name))
-                        {
-                            if (!addedOps)
-                            {
-                                cleanedList.Add(new NavigationItem { Id = 49, Name = "Workforce Operations", ParentId = item.ParentId });
-                                addedOps = true;
-                            }
-                        }
-                        else
-                        {
-                            cleanedList.Add(item);
-                        }
-                    }
-                    list = cleanedList;
-                }
-            }
-
+            var list = Items;
             if (string.IsNullOrWhiteSpace(SearchQuery)) return list;
 
             var q = SearchQuery.Trim();
@@ -627,91 +507,25 @@
 
     private int GetVisibleChildrenCount(NavigationItem item)
     {
-        if (item.Children.Count == 0) return 0;
-        var list = item.Children;
-        var hasEmployee = list.Any(i => IsEmployeeLeafItem(i.Name));
-        var hasOps = list.Any(i => IsEmployeeOpsLeafItem(i.Name));
-        if (hasEmployee || hasOps)
-        {
-            int count = 0;
-            if (hasEmployee) count++;
-            if (hasOps) count++;
-            count += list.Count(i => !IsEmployeeLeafItem(i.Name) && !IsEmployeeOpsLeafItem(i.Name));
-            return count;
-        }
-        return list.Count;
+        return item.Children?.Count ?? 0;
     }
 
     private static bool IsDashboardItem(string name, int id)
     {
-        return id == 184 || name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase);
+        return id == 90 || id == 184 || name.Equals("Dashboard", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsEmployeeLeafItem(string name)
     {
         return name.Equals("Employee", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Employee Profiles", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Profile", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Details", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Emp Details", StringComparison.OrdinalIgnoreCase);
+            || name.Equals("Employee Profile", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsEmployeeOpsLeafItem(string name)
+    private static bool IsEmployeeItem(string name, int id = 0)
     {
-        return name.Equals("Emp Status", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Status", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Set Priority", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Contact Info", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Workforce Operations", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Operations", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsEmployeeStatusItem(string name)
-    {
-        return name.Equals("Employee Status", StringComparison.OrdinalIgnoreCase) 
-            || name.Equals("Employee_Status", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Emp Status", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Emp_Status", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Workforce Status", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsEmployeeDetailsItem(string name)
-    {
-        return name.Equals("Employee Details", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee_Details", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Emp Details", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Emp_Details", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Detail", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSetPriorityItem(string name)
-    {
-        return name.Equals("Set Priority", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Set_Priority", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Priority", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Priority", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Set Employee Priority", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsContactInfoItem(string name)
-    {
-        return name.Equals("Contact Info", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Contact Information", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Contact", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Emp Contact", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsWorkforceOperationsItem(string name)
-    {
-        return name.Equals("Workforce Operations", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Employee Operations", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Operations", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsEmployeeItem(string name)
-    {
-        return name.Equals("Employee", StringComparison.OrdinalIgnoreCase) 
+        return id == 12
+            || name.Equals("Employee", StringComparison.OrdinalIgnoreCase) 
             || name.Equals("Employee Profiles", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Employee Profile", StringComparison.OrdinalIgnoreCase);
     }
